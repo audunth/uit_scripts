@@ -115,33 +115,7 @@ def PDF_from_CF_fft(CF, P, Xlen=2**12, dX=0.01):
     Xfreq = np.fft.rfftfreq(Xlen, dX)
     u = 2*np.pi*Xfreq
 
-    assert(CF in ['CF_exp',
-                  'CF_gamma',
-                  'CF_gamma_norm',
-                  'CF_gamma_gauss_norm',
-                  'CF_general',
-                  'CF_general_lorentz'])
-
-    if CF == 'CF_exp':
-        assert(len(P)==1)
-        C = CF_exp(u, P)
-    elif CF == 'CF_gamma':
-        assert(len(P)==2)
-        C = CF_gamma(u, P)
-    elif CF == 'CF_gamma_norm':
-        assert(len(P)==1)
-        C = CF_gamma_norm(u, P)
-    elif CF == 'CF_gamma_gauss_norm':
-        assert(len(P)==2)
-        C = CF_gamma_gauss_norm(u, P)
-    elif CF == 'CF_general':
-        assert(len(P)==3)
-        C = CF_general(u, P)
-    elif CF == 'CF_general_lorentz':
-        assert(len(P)==3)
-        C = CF_general_lorentz(u, P)
-
-    pdf = np.fft.irfft(C[:,0])[::-1]/dX
+    pdf = np.fft.irfft(CF(u, P)[:,0])[::-1]/dX
     pdf = np.fft.fftshift(pdf)
 
     X = np.arange(-Xlen/2+1,Xlen/2+1)*dX
@@ -251,9 +225,6 @@ def CF_gamma_gauss_norm(u, P):
     tmp2 = P[0]*(0.5*P[1]*v**2-v)
     res[:, 0] = tmp1*np.exp(tmp2)
 
-    # Old definition
-    # res[:, 0] = (np.exp(-1.j*np.sqrt(P[0])*utmp - 0.5*P[1]*utmp**2)
-    #            *(1.-1.j*utmp/np.sqrt(P[0]))**(-P[0]))
     return res
 
 
@@ -297,13 +268,6 @@ def CF_general(u, P):
     tmp2 = (1. - (1.-P[1])*v)**(-P[0]*(1.-P[1]))
     tmp3 = P[0]*(0.5*P[2]*B**2.*v**2.-(1.-2.*P[1])*v)
     res[:, 0] = tmp1*tmp2*np.exp(tmp3)
-
-    # Old definition
-    # K = np.sqrt(1.-3.*(1.-P[1])*P[1])
-    # v = u/(np.sqrt(P[0]*(1.+P[2]))*K)
-    # res[:,0] = ((1. + 1.j*P[1]*v)**(-P[0]*P[1])
-    # * (1. - 1.j*(1.-P[1])*v)**(-P[0]*(1.-P[1]))
-    # * np.exp( -P[2]*u**2./(2.*(1.+P[2])) - 1.j*(1.-2.*P[1])*P[0]*v ))
 
     return res
 
@@ -356,5 +320,61 @@ def CF_general_lorentz(u, P):
     res[:, 0] = np.exp(logres)
 
     return res
+
+def CF_bounded_Pareto(u, P):
+    """
+    Use: CF_bounded_Pareto(u, P)
+
+    This function returns the characteristic function of an FPP with exponential
+    pulses and bounded Pareto amplitudes [3] as a complex (u.size, 1)-matrix.
+
+    The parameters are:
+    gamma, the shape parameter of the distribution,
+    alpha, the scale of the Pareto distribution,
+    L, the lower bound of the Pareto distribution,
+    H, the upper bound of the Pareto distribution.
+
+    Input:
+        u: The variable of the characteristic function. .......... 1D np array
+        P=[gamma, alpha, L, H]: The parameters of the distribution. ... list
+
+    Output:
+        res: the characteristic function. ........ complex (u.size,1) np array
+
+    References:
+    [1] A. Theodorsen and O. E. Garcia, PPCF 60 (2018) 034006
+        https://doi.org/10.1088/1361-6587/aa9f9c
+    [2] O. E. Garcia and A. Theodorsen POP 25 (2018) 014506
+        https://doi.org/10.1063/1.5020555
+    [3] https://en.wikipedia.org/wiki/Pareto_distribution
+    """
+    import numpy as np
+    import mpmath as mm
+
+    res = np.zeros([u.size, 1], dtype=complex)
+
+    g_m = mm.mpf(P[0])
+    a_m = mm.mpf(P[1])
+    L_m = mm.mpf(P[2])
+    H_m = mm.mpf(P[3])
+
+    u_m = mm.matrix(-1.j*u)
+    C = mm.matrix(u.size, 1)
+
+    def tmp(x,a):
+        if x == 0:
+            res = 0
+        else:
+            res = (1./a + mm.euler + mm.log(x) + mm.gammainc(0,x)
+                   + x**a*mm.gamma(-a) - x**a*mm.gammainc(-a,x))
+        return res
+
+    const_1 = g_m/(H_m**a_m-L_m**a_m)
+
+    for i in range(u.size):
+        lnC = (-H_m**a_m * tmp(L_m*u_m[i],a_m) + L_m**a_m * tmp(H_m*u_m[i],a_m))
+        C[i] = mm.exp(const_1*lnC)
+
+    return np.array(C.tolist(), dtype=np.cfloat)
 
 # EOF parameter_estimation_ECF.py

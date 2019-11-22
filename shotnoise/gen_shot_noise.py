@@ -46,6 +46,30 @@ def sample_asymm_laplace(
 
     return X
 
+def sample_bounded_Pareto(alpha = 1., L = 1., H = 10., size=None, seed=None):
+    """
+    Use:
+        sample_bounded_Pareto(alpha = 1., L = 1., H = 10., size=None, seed=None)
+    random samples drawn from the bounded Pareto distribution,
+        p_X(x) ~ x^(-alpha-1), L<x<H
+                 0,             else
+    See https://en.wikipedia.org/wiki/Pareto_distribution
+
+    Input:
+        alpha: scale parameter. ......................... float, alpha>0
+        L: lower bound .................................. float, L>0
+        H: upper bound .................................. float, H>L
+        size: number of points to draw. 1 by default. ... int, size>0
+        seed: specify a random seed. .................... int
+    Output:
+        X: Array of randomly distributed values. ........ (size,) np array
+    """
+    import numpy as np
+    
+    prng = np.random.RandomState(seed=seed)
+    U = prng.uniform(size=size)
+
+    return H*L*( (1-U)*H**alpha + U*L**alpha )**(-1./alpha)
 
 def amp_ta(
         gamma, K, Kdist=False, mA=1., kappa=0.5, TWkappa = 0.,

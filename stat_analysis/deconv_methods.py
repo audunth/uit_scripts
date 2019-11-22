@@ -68,11 +68,13 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
         # This is handeled numerically by setting all elements <= cutoff to 0
         # and only performing the interation on those elements > cutoff.
 
+        #tmp = np.abs(fftconvolve(update0, kernconv, 'same'))
         tmp = fftconvolve(update0, kernconv, 'same')
         good = tmp > cutoff
 
         #update1 = update0 * sigconv / tmp
         update1[good] = update0[good] * sigconv[good] / tmp[good]
+        #update1 = update0 * sigconv / (tmp + 1)
 
         #bad = index_array[np.invert(good)]
         #if len(bad)>0:
