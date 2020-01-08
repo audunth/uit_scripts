@@ -46,10 +46,10 @@ def sample_asymm_laplace(
 
     return X
 
-def sample_bounded_Pareto(alpha = 1., L = 1., H = 10., size=None, seed=None):
+def sample_bounded_Pareto(alpha = 1., L = 1., H = 100., size=None, seed=None):
     """
     Use:
-        sample_bounded_Pareto(alpha = 1., L = 1., H = 10., size=None, seed=None)
+        sample_bounded_Pareto(alpha = 1., L = 1., H = 100., size=None, seed=None)
     random samples drawn from the bounded Pareto distribution,
         p_X(x) ~ x^(-alpha-1), L<x<H
                  0,             else
@@ -65,7 +65,7 @@ def sample_bounded_Pareto(alpha = 1., L = 1., H = 10., size=None, seed=None):
         X: Array of randomly distributed values. ........ (size,) np array
     """
     import numpy as np
-    
+
     prng = np.random.RandomState(seed=seed)
     U = prng.uniform(size=size)
 
@@ -109,6 +109,8 @@ def amp_ta(
                and scale parameter m/kappa (so m is the mean value)
         'alap': (only Adist) asymmetric laplace distribution with rms-value m
                 and asymmetry parameter kappa.
+        'pareto': (only Adist) bounded pareto distribution.
+                  Lower bound 1 and upper bound mA. Scale kappa.
     Output:
         ta: Arrival times .................................. (K,) np array
         A: Amplitudes ...................................... (K,) np array
@@ -131,8 +133,8 @@ def amp_ta(
     """
     import numpy as np
 
-    distlist = ['exp','deg','ray','unif','unifc','gam','alap']
-    assert(TWdist in distlist[:-1]), 'Invalid TWdist'
+    distlist = ['exp','deg','ray','unif','unifc','gam','alap', 'pareto']
+    assert(TWdist in distlist[:-2]), 'Invalid TWdist'
     assert(Adist in distlist), 'Invalid Adist'
 
     prngTW = np.random.RandomState(seed=seedTW)
@@ -174,6 +176,8 @@ def amp_ta(
         A = sample_asymm_laplace(
                 alpha=mA*0.5/np.sqrt(1.-2.*kappa*(1.-kappa)), kappa=kappa,
                 size=K, seed=seedA)
+    elif Adist == 'pareto':
+        A = sample_bounded_Pareto(alpha=kappa, L=1, H=mA, size=K, seed=seedA)
 
     return A, ta, Tend
 

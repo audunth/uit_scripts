@@ -351,7 +351,7 @@ def CF_bounded_Pareto(u, P):
     import numpy as np
     import mpmath as mm
 
-    res = np.zeros([u.size, 1], dtype=complex)
+    #res = np.zeros([u.size, 1], dtype=complex)
 
     g_m = mm.mpf(P[0])
     a_m = mm.mpf(P[1])
@@ -362,18 +362,19 @@ def CF_bounded_Pareto(u, P):
     C = mm.matrix(u.size, 1)
 
     def tmp(x,a):
-        if x == 0:
-            res = 0
-        else:
-            res = (1./a + mm.euler + mm.log(x) + mm.gammainc(0,x)
-                   + x**a*mm.gamma(-a) - x**a*mm.gammainc(-a,x))
-        return res
+        return -mm.log(x) - mm.gammainc(0,x) + x**a*mm.gammainc(-a,x)
 
+    const_0 = -g_m*(a_m**(-1)+mm.euler)
     const_1 = g_m/(H_m**a_m-L_m**a_m)
 
     for i in range(u.size):
-        lnC = (-H_m**a_m * tmp(L_m*u_m[i],a_m) + L_m**a_m * tmp(H_m*u_m[i],a_m))
-        C[i] = mm.exp(const_1*lnC)
+        if u_m[i] == 0:
+            lnC = 0
+        else:
+            lnCtmp = (H_m**a_m*tmp(L_m*u_m[i],a_m)
+                     -L_m**a_m*tmp(H_m*u_m[i],a_m))
+            lnC = const_0 + const_1*lnCtmp
+        C[i] = mm.exp(lnC)
 
     return np.array(C.tolist(), dtype=np.cfloat)
 
