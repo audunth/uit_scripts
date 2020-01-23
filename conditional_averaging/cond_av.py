@@ -130,15 +130,14 @@ def cond_av(S, T, smin, smax=None, Sref=None, delta=None, window=False):
 
         s_tmp[:, i] = tmp_sn
     s_av = np.mean(s_tmp, axis=1)
-
-    # Conditional variance is the sum of squares of
-    # the deviation from the conditional average,
-    # divided by the sum of the squared conditional events, at each time.
-    # Given K conditional events fk(t), k=1...K,
-    # and the conditional average <f>(t), we have:
-    # 1-CV = 1-sum_k (fk(t) - <f>(t))**2 / sum(fk(t)**2)
-    # It is easily shown that this is equal to K <f>(t)**2/sum(fk(t)**2).
-    s_var = len(lT)*s_av**2/np.sum(s_tmp**2, axis=1)
+    
+    # The conditional variance of the conditional event f(t) is defined as
+    # CV = <(f-<f>)^2>/<f^2> = 1 - <f>^2/<f^2>
+    # at each time t.
+    # For a highly reproducible signal, f~<f> and CV = 0.
+    # For a completely random signal, <f^2> >> <f>^2 and CV = 1.
+    # OBS: We return 1-CV = <f>^2/<f^2>.
+    s_var = s_av**2/np.mean(s_tmp**2, axis=1)
     print('conditional events:{}'.format(len(peaks)), flush=True)
     if badcount > 0:
         print('bursts where the recorded peak is not the largest:' + str(badcount))
