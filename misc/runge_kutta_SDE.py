@@ -21,7 +21,6 @@ def SDE(T,x0=0,a = lambda x,i: 0,b = lambda x,i: 1,seed = None):
     X[0] = x0
     for i in range(len(T)-1):
         x = X[i]
-        t = T[i]
         B = b(x,i)
         B2 = x+B*(dt**(0.5)) - B
         X[i+1] = x + a(x,i)*dt + B*dW[i] + 0.5*B2*(dW[i]**2-dt)*(dt**(-0.5))
