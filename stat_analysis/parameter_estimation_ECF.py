@@ -100,9 +100,9 @@ def PDF_from_CF_fft(CF, P, Xlen=2**12, dX=0.01):
     the inverse fourier transform of a characteristic function.
 
     Input:
-        CF: One of 'CF_exp', 'CF_gamma', 'CF_gamma_norm',
-            'CF_gamma_gauss_norm', 'CF_general' or 'CF_general_lorentz'.
-            This gives the name of the CF in this library.
+        CF: The characteristic function of X. ....... function, usage CF(u,P),
+                                                      returning a complex
+                                                      (u.size,1)-matrix.
         P: List of parameters. ...................................... list
         Xlen: Number of data points in the random varaible array. ... int
         dX: step size of the random varaible array. ................. float

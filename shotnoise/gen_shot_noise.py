@@ -215,7 +215,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
         assert((lam > 0.) & (lam < 1.))
         if dkern:
             kern[tkern < 0] = np.exp(tkern[tkern < 0]/lam)/lam
-            kern[tkern >= 0] = -np.exp(-tkern[tkern >= 0]/(1.-lam))/(1.-lam)
+            kern[tkern > 0] = -np.exp(-tkern[tkern > 0]/(1.-lam))/(1.-lam)
         else:
             kern[tkern < 0] = np.exp(tkern[tkern < 0] / lam)
             kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / (1-lam))
