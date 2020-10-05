@@ -4,7 +4,7 @@ from scipy.integrate import simps
 def cdf(Data,ccdf = True):
     """ This function calculates only the cdf (or ccdf) of the data using the method described belwo in 'distirbution'. It does not interpolate. """
     DS = np.sort(Data)
-    ECDF = np.arange(len(DS))/float(len(DS))
+    ECDF = np.linspace(0., 1., len(DS))
     if ccdf == True:
         ECDF = 1-ECDF
     return DS, ECDF
