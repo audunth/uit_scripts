@@ -182,7 +182,7 @@ def amp_ta(
     return A, ta, Tend
 
 
-def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
+def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td=1):
     """
     Use:
         kern(tkern, kerntype = 0, lam = 0.5, dkern = False, tol=1e-5)
@@ -196,10 +196,18 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
             2: Lorenz pulse
             3: Gaussian pulse
             4: Sech pulse
+            5: Box pulse
+            6: Triangular pulse
+            7: Rayleigh pulse
+            8: Gamma pulse
+            9: Pareto pulse
+            10: Laplace pulse
         lam: Asymmetry of the two-sided exponential pulse. ... float in (0.,1.)
         dkern: Use the derivative of the kernel?  ............ bool
             Currently only implemented for kerntype=1.
         tol: Error tolerance for end effects. ................ float
+        shape: Shape parameter for Gamma and Pareto pulse. ... float > 0
+        scale: scale parameter where needed. ................. float > 0
     Output:
         kern: The computed kernel. ........................... (N,) np array
 
@@ -207,24 +215,44 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
     """
     import numpy as np
     import warnings
-    assert(kerntype in range(5))
+    assert(kerntype in range(11))
+    assert(scale > 0.)
+    assert(shape > 0.) 
     kern = np.zeros(tkern.size)
     if kerntype == 0:
-        kern[tkern >= 0] = np.exp(-tkern[tkern >= 0])
+        kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0]/scale)
     elif kerntype == 1:
         assert((lam > 0.) & (lam < 1.))
         if dkern:
             kern[tkern < 0] = np.exp(tkern[tkern < 0]/lam)/lam
             kern[tkern > 0] = -np.exp(-tkern[tkern > 0]/(1.-lam))/(1.-lam)
         else:
-            kern[tkern < 0] = np.exp(tkern[tkern < 0] / lam)
-            kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / (1-lam))
+            kern[tkern < 0] = 1/scale*np.exp(tkern[tkern < 0] / lam/scale)
+            kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0] / (1-lam)/scale)
     elif kerntype == 2:
-        kern = (np.pi*(1+tkern**2))**(-1)
+        kern = (scale*np.pi*(1+(tkern/scale)**2))**(-1)
     elif kerntype == 3:
-        kern = np.exp(-tkern**2/2)/np.sqrt(2*np.pi)
+        kern = np.exp(-(tkern/scale)**2/2)/(np.sqrt(2*np.pi)*scale)
     elif kerntype == 4:
         kern = (np.pi*np.cosh(tkern))**(-1)
+    elif kerntype == 5:
+        kern[tkern >-0.5] = 1
+        kern[tkern > 0.5] = 0
+    elif kerntype == 6:
+        kern[tkern >= -1] = 1 + tkern[tkern >= -1]
+        kern[tkern >= 0] = 1 - tkern[tkern >= 0]
+        kern[tkern >= 1] = 0
+    elif kerntype == 7:
+        kern[tkern >= 0] = tkern[tkern >= 0]/scale**2 * np.exp( - tkern[tkern >= 0]**2/(2*scale**2))
+    elif kerntype == 8:
+        from scipy.special import gamma as Ga
+        kern[tkern >= 0] = 1/(Ga(shape)*scale**shape) * tkern[tkern >= 0]**(shape-1) * np.exp( - tkern[tkern >= 0]/scale)
+    elif kerntype == 9:
+        # add scale to tkern -> peak of pulse is at t=0
+        kern[tkern >= 0] = shape*scale**shape/(tkern[tkern >= 0]+scale)**(shape+1)
+    elif kerntype == 10:
+        kern = 1/(2*scale) * np.exp(-np.abs(tkern)/scale)
+
 
     err = max(np.abs(kern[0]), np.abs(kern[-1]))
     if err > tol:
@@ -236,7 +264,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
 
 def signal_convolve(
         A, ta, Tend, dt,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, kernscale=1):
     """
     Use:
         signal_convolve(
@@ -279,7 +307,7 @@ def signal_convolve(
         return F
 
     F = genF()
-    G = kern(tkern, kerntype, lam, dkern, tol)
+    G = kern(tkern, kerntype, lam, dkern, tol, shape=kernshape, scale=kernscale)
     S = fftconvolve(F, G, 'same')
 
     return T, S
@@ -287,7 +315,7 @@ def signal_convolve(
 
 def signal_superposition(
         A, ta, Tend, dt,
-        kerntype=0, lam=0.5, dkern=False):
+        kerntype=0, lam=0.5, dkern=False, kernshape=1, kernscale=1):
     """
     Use:
         signal_superposition(
@@ -317,7 +345,7 @@ def signal_superposition(
     for k in range(K):
         # tol in kernel set to np.inf as the kernel is computed
         # over the entire time array. End effects do not cause problems.
-        S += A[k] * kern(T-ta[k], kerntype, lam, dkern, tol=np.inf)
+        S += A[k] * kern(T-ta[k], kerntype, lam, dkern, tol=np.inf, shape=kernshape, scale=kernscale)
 
     return T, S
 
@@ -373,7 +401,7 @@ def make_signal(
         gamma, K, dt, Kdist=False, mA=1., kappa=0.5, TWkappa=0, ampta=False,
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, kernscale=1):
     """
     Use:
         make_signal(
@@ -401,11 +429,11 @@ def make_signal(
         T, S = signal_convolve(
                 A, ta, Tend, dt,
                 kernsize=kernsize, kerntype=kerntype,
-                lam=lam, dkern=dkern, tol=tol)
+                lam=lam, dkern=dkern, tol=tol, kernshape=kernshape, kernscale=kernscale)
     else:
         T, S = signal_superposition(
                 A, ta, Tend, dt,
-                kerntype=kerntype, lam=lam, dkern=dkern)
+                kerntype=kerntype, lam=lam, dkern=dkern, kernshape=kernshape, kernscale=kernscale)
 
     if (dynamic or additive):
         X = gen_noise(
