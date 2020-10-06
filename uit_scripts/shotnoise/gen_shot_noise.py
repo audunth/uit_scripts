@@ -220,38 +220,39 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
     assert(shape > 0.) 
     kern = np.zeros(tkern.size)
     if kerntype == 0:
-        kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0]/scale)
+        kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0]/(scale*td))
     elif kerntype == 1:
         assert((lam > 0.) & (lam < 1.))
         if dkern:
+            # duration time not implemented for derivative yet
             kern[tkern < 0] = np.exp(tkern[tkern < 0]/lam)/lam
             kern[tkern > 0] = -np.exp(-tkern[tkern > 0]/(1.-lam))/(1.-lam)
         else:
-            kern[tkern < 0] = 1/scale*np.exp(tkern[tkern < 0] / lam/scale)
-            kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0] / (1-lam)/scale)
+            kern[tkern < 0] = 1/scale*np.exp(tkern[tkern < 0] / lam/(scale*td))
+            kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0] / (1-lam)/(scale*td))
     elif kerntype == 2:
-        kern = (scale*np.pi*(1+(tkern/scale)**2))**(-1)
+        kern = (scale*np.pi*(1+(tkern/(scale*td))**2))**(-1)
     elif kerntype == 3:
-        kern = np.exp(-(tkern/scale)**2/2)/(np.sqrt(2*np.pi)*scale)
+        kern = np.exp(-(tkern/(scale*td))**2/2)/(np.sqrt(2*np.pi)*scale)
     elif kerntype == 4:
-        kern = (np.pi*np.cosh(tkern))**(-1)
+        kern = (np.pi*np.cosh(tkern/td))**(-1)
     elif kerntype == 5:
-        kern[tkern >-0.5] = 1
-        kern[tkern > 0.5] = 0
+        kern[tkern >-0.5*td] = 1
+        kern[tkern > 0.5*td] = 0
     elif kerntype == 6:
-        kern[tkern >= -1] = 1 + tkern[tkern >= -1]
-        kern[tkern >= 0] = 1 - tkern[tkern >= 0]
-        kern[tkern >= 1] = 0
+        kern[tkern >= -1*td] = 1 + tkern[tkern >= -1*td]/td
+        kern[tkern >= 0*td] = 1 - tkern[tkern >= 0*td]/td
+        kern[tkern >= 1*td] = 0
     elif kerntype == 7:
-        kern[tkern >= 0] = tkern[tkern >= 0]/scale**2 * np.exp( - tkern[tkern >= 0]**2/(2*scale**2))
+        kern[tkern >= 0] = tkern[tkern >= 0]/td/scale**2 * np.exp( - (tkern[tkern >= 0]/td)**2/(2*scale**2))
     elif kerntype == 8:
         from scipy.special import gamma as Ga
-        kern[tkern >= 0] = 1/(Ga(shape)*scale**shape) * tkern[tkern >= 0]**(shape-1) * np.exp( - tkern[tkern >= 0]/scale)
+        kern[tkern >= 0] = 1/(Ga(shape)*scale**shape) * (tkern[tkern >= 0]/td)**(shape-1) * np.exp( - (tkern[tkern >= 0]/td)/scale)
     elif kerntype == 9:
         # add scale to tkern -> peak of pulse is at t=0
-        kern[tkern >= 0] = shape*scale**shape/(tkern[tkern >= 0]+scale)**(shape+1)
+        kern[tkern >= 0] = shape*scale**shape/(tkern[tkern >= 0]/td+scale)**(shape+1)
     elif kerntype == 10:
-        kern = 1/(2*scale) * np.exp(-np.abs(tkern)/scale)
+        kern = 1/(2*scale) * np.exp(-np.abs(tkern/td)/scale)
 
 
     err = max(np.abs(kern[0]), np.abs(kern[-1]))
