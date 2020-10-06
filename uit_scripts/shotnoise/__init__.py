@@ -22,3 +22,4 @@ from .gen_shot_noise import kern
 from .gen_shot_noise import amp_ta
 from .gen_shot_noise import sample_bounded_Pareto
 from .gen_shot_noise import sample_asymm_laplace
+from .gen_shot_noise import td_dist

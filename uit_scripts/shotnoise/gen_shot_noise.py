@@ -91,8 +91,8 @@ def amp_ta(
         mA: mean amplitude. ................................ float>0
         kappa: asymmetry parameter for Adist. .............. float
         TWkappa: asymmetry parameter for TWdist. ........... float
-        TWdist: Waiting time distribution (see below) ...... int in range(4)
-        Adist: Amplitude distribution (see below) .......... int in range(5)
+        TWdist: Waiting time distribution (see below) ...... int in range(5)
+        Adist: Amplitude distribution (see below) .......... int in range(7)
         seedTW/A: Specify a random seed for TWdist/Adist ... int
     Options for distributions are (where m denotes either mA or tw=1/gamma):
         Note: Using a distribution which gives negative values for the
@@ -181,8 +181,71 @@ def amp_ta(
 
     return A, ta, Tend
 
+def td_dist(
+        K, TDdist='exp', seedTD=None , TDkappa=0):
+    """
+    Use:
+        amp_ta(
+            K,  TDdist='exp', seedTW=None)
 
-def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td=1):
+    This function generates the amplitudes duration times
+    for a shot noise signal.
+    All times are normalized by the average duration time.
+    Input:
+        K: Number of arrivals. See Kdist, below ............ int
+        TDdist: Duration time distribution (see below) ..... int in range(6)
+        seedTD: Specify a random seed for TD ............... int
+    Options for distributions are:
+    #########################################################################################################################
+        Change after implentation done
+
+
+        Note: Using a distribution which gives negative values for the
+        duration times gives an error.
+        'exp': exponential with scale parameter m
+        'deg': degenerate with location m
+        'ray': rayleigh with scale parameter np.sqrt(2./np.pi)*m
+               (so m is the mean value)
+        'unif': uniform distribution of width 2m and minimum kappa
+                (kappa = 0 gives unif dist on [0,2m] and mean m)
+                (kappa = -m gives unif dist on [-m,m] and mean 0)
+                (for TWdist, kappa >=0.)
+        'gam': gamma distribution with shape parameter kappa
+               and scale parameter m/kappa (so m is the mean value)
+        'pareto': (only Adist) bounded pareto distribution.
+                  Lower bound 1 and upper bound mA. Scale kappa.
+    #########################################################################################################################
+    Output:
+        td: Duration times ................................. (K,) np array
+
+    All time is normalized by the average duration time.
+    """
+    import numpy as np
+
+    distlist = ['exp','deg','ray','unif','gam','pareto']
+    assert(TDdist in distlist), 'Invalid TDdist'
+
+    prngTD = np.random.RandomState(seed=seedTD)
+
+    if TDdist == 'exp':
+        TD = prngTD.exponential(scale=1, size=K)
+    elif TDdist == 'deg':
+        TD = np.ones(K)
+    elif TDdist == 'ray':
+        TD = prngTD.rayleigh(scale=np.sqrt(2./np.pi), size=K)
+    elif TDdist == 'unif':
+        assert(TWkappa>=0.), 'TWkappa>=0 for TWdist uniform'
+        assert(TWkappa<=1.), 'TWkappa>=1 for TWdist uniform'
+        TD = prngTD.uniform(low=TDkappa, high=2- TDkappa, size=K)
+    elif TDdist == 'gam':
+        TD = prngTD.gamma(TDkappa, scale=1/TDkappa, size=K)
+    elif TDdist == 'pareto':
+        TD = sample_bounded_Pareto(alpha=0.1, L=1, H=10, size=K, seed=seedTD)-1
+    
+    return TD
+
+
+def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1): 
     """
     Use:
         kern(tkern, kerntype = 0, lam = 0.5, dkern = False, tol=1e-5)
@@ -190,7 +253,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
     Returns the kernel (or pulse shape)
     Input:
         tkern: Time array for the computation. ............... (N,) np array
-        kerntype: Kernel to use in the convolution: .......... int in range(4)
+        kerntype: Kernel to use in the convolution: .......... int in range(10)
             0: one-sided exponential pulse
             1: two-sided exponential pulse (requires lam in (0,1)).
             2: Lorenz pulse
@@ -208,6 +271,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
         tol: Error tolerance for end effects. ................ float
         shape: Shape parameter for Gamma and Pareto pulse. ... float > 0
         scale: scale parameter where needed. ................. float > 0
+        td: duration time .................................... float > 0
     Output:
         kern: The computed kernel. ........................... (N,) np array
 
@@ -216,11 +280,10 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
     import numpy as np
     import warnings
     assert(kerntype in range(11))
-    assert(scale > 0.)
     assert(shape > 0.) 
     kern = np.zeros(tkern.size)
     if kerntype == 0:
-        kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0]/(scale*td))
+        kern[tkern >= 0] = np.exp(-tkern[tkern >= 0]/td)
     elif kerntype == 1:
         assert((lam > 0.) & (lam < 1.))
         if dkern:
@@ -228,12 +291,12 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
             kern[tkern < 0] = np.exp(tkern[tkern < 0]/lam)/lam
             kern[tkern > 0] = -np.exp(-tkern[tkern > 0]/(1.-lam))/(1.-lam)
         else:
-            kern[tkern < 0] = 1/scale*np.exp(tkern[tkern < 0] / lam/(scale*td))
-            kern[tkern >= 0] = 1/scale*np.exp(-tkern[tkern >= 0] / (1-lam)/(scale*td))
+            kern[tkern < 0] = np.exp(tkern[tkern < 0] / lam/td)
+            kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / (1-lam)/td)
     elif kerntype == 2:
-        kern = (scale*np.pi*(1+(tkern/(scale*td))**2))**(-1)
+        kern = (np.pi*(1+(tkern/td)**2))**(-1)
     elif kerntype == 3:
-        kern = np.exp(-(tkern/(scale*td))**2/2)/(np.sqrt(2*np.pi)*scale)
+        kern = np.exp(-(tkern/td)**2/2)/(np.sqrt(2*np.pi))
     elif kerntype == 4:
         kern = (np.pi*np.cosh(tkern/td))**(-1)
     elif kerntype == 5:
@@ -244,15 +307,15 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
         kern[tkern >= 0*td] = 1 - tkern[tkern >= 0*td]/td
         kern[tkern >= 1*td] = 0
     elif kerntype == 7:
-        kern[tkern >= 0] = tkern[tkern >= 0]/td/scale**2 * np.exp( - (tkern[tkern >= 0]/td)**2/(2*scale**2))
+        kern[tkern >= 0] = tkern[tkern >= 0]/td * np.exp( - (tkern[tkern >= 0]/td)**2/2)
     elif kerntype == 8:
         from scipy.special import gamma as Ga
-        kern[tkern >= 0] = 1/(Ga(shape)*scale**shape) * (tkern[tkern >= 0]/td)**(shape-1) * np.exp( - (tkern[tkern >= 0]/td)/scale)
+        kern[tkern >= 0] = 1/Ga(shape) * (tkern[tkern >= 0]/td)**(shape-1) * np.exp( - (tkern[tkern >= 0]/td))
     elif kerntype == 9:
-        # add scale to tkern -> peak of pulse is at t=0
-        kern[tkern >= 0] = shape*scale**shape/(tkern[tkern >= 0]/td+scale)**(shape+1)
+        # add 1 to tkern -> peak of pulse is at t=0
+        kern[tkern >= 0] = shape/(tkern[tkern >= 0]/td+1)**(shape+1)
     elif kerntype == 10:
-        kern = 1/(2*scale) * np.exp(-np.abs(tkern/td)/scale)
+        kern = 0.5 * np.exp(-np.abs(tkern/td))
 
 
     err = max(np.abs(kern[0]), np.abs(kern[-1]))
@@ -265,7 +328,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, scale=1, td
 
 def signal_convolve(
         A, ta, Tend, dt,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, kernscale=1):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1):
     """
     Use:
         signal_convolve(
@@ -308,15 +371,15 @@ def signal_convolve(
         return F
 
     F = genF()
-    G = kern(tkern, kerntype, lam, dkern, tol, shape=kernshape, scale=kernscale)
+    G = kern(tkern, kerntype, lam, dkern, tol, shape=kernshape)
     S = fftconvolve(F, G, 'same')
 
     return T, S
 
 
 def signal_superposition(
-        A, ta, Tend, dt,
-        kerntype=0, lam=0.5, dkern=False, kernshape=1, kernscale=1):
+        A, ta, Tend, dt, td,
+        kerntype=0, lam=0.5, dkern=False, kernshape=1):
     """
     Use:
         signal_superposition(
@@ -346,7 +409,7 @@ def signal_superposition(
     for k in range(K):
         # tol in kernel set to np.inf as the kernel is computed
         # over the entire time array. End effects do not cause problems.
-        S += A[k] * kern(T-ta[k], kerntype, lam, dkern, tol=np.inf, shape=kernshape, scale=kernscale)
+        S += A[k] * kern(T-ta[k], kerntype, lam, dkern, tol=np.inf, shape=kernshape, td = td[k])
 
     return T, S
 
@@ -402,7 +465,8 @@ def make_signal(
         gamma, K, dt, Kdist=False, mA=1., kappa=0.5, TWkappa=0, ampta=False,
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, kernscale=1):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
+        TDdist='deg', seedTD=None , TDkappa=0):
     """
     Use:
         make_signal(
@@ -417,24 +481,27 @@ def make_signal(
         amptd: If True, returns amplitudes and duration times as well.
     Output:
         The output is given in the following order:
-        T, S, S+dynamic noise, S+additive noise, A, ta
+        T, S, S+dynamic noise, S+additive noise, A, ta, td
         Only outputs noise or amplitudes and duration times if prompted.
-
+        td is only returned for convolve=False
     All time is normalized by duration time.
     """
     import numpy as np
     A, ta, Tend = amp_ta(
             gamma, K, Kdist=Kdist, mA=mA, kappa=kappa, TWkappa = TWkappa,
             TWdist=TWdist, Adist=Adist, seedTW=seedTW, seedA=seedA)
+
     if convolve:
         T, S = signal_convolve(
                 A, ta, Tend, dt,
                 kernsize=kernsize, kerntype=kerntype,
-                lam=lam, dkern=dkern, tol=tol, kernshape=kernshape, kernscale=kernscale)
+                lam=lam, dkern=dkern, tol=tol, kernshape=kernshape)
     else:
+        td = td_dist(K, TDdist=TDdist, seedTD=seedTD , TDkappa=TDkappa)
+
         T, S = signal_superposition(
                 A, ta, Tend, dt,
-                kerntype=kerntype, lam=lam, dkern=dkern, kernshape=kernshape, kernscale=kernscale)
+                kerntype=kerntype, lam=lam, dkern=dkern, kernshape=kernshape, td=td)
 
     if (dynamic or additive):
         X = gen_noise(
@@ -450,6 +517,8 @@ def make_signal(
         res += (S+X[1],)
     if ampta:
         res += (A,ta)
+        if (convolve==False):
+            res += (td,)
     return res
 
 # End of file shot_noise_functions.py
