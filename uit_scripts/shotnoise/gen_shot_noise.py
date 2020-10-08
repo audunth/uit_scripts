@@ -90,9 +90,9 @@ def amp_ta(
                Activate for Monte-Carlo simulations. ....... bool
         mA: mean amplitude. ................................ float>0
         kappa: asymmetry parameter for Adist. .............. float
-        TWkappa: asymmetry parameter for TWdist. ........... float
+        TWkappa: asymmetry/width parameter for TWdist. ..... float
         TWdist: Waiting time distribution (see below) ...... int in range(5)
-        Adist: Amplitude distribution (see below) .......... int in range(7)
+        Adist: Amplitude distribution (see below) .......... int in range(8)
         seedTW/A: Specify a random seed for TWdist/Adist ... int
     Options for distributions are (where m denotes either mA or tw=1/gamma):
         Note: Using a distribution which gives negative values for the
@@ -109,8 +109,13 @@ def amp_ta(
                and scale parameter m/kappa (so m is the mean value)
         'alap': (only Adist) asymmetric laplace distribution with rms-value m
                 and asymmetry parameter kappa.
-        'pareto': (only Adist) bounded pareto distribution.
+        'Lomax': pareto II or Lomax distribution with kappa as shape parameter
+                 The classical Pareto distribution can be obtained from the 
+                 Lomax distribution by adding 1 and multiplying by the scale parameter m.
+        'bpareto': (only Adist) bounded pareto distribution.
                   Lower bound 1 and upper bound mA. Scale kappa.
+        'norm': (only Adist) normal distribution
+                normalized to <A>=0 and A_rms = 1
     Output:
         ta: Arrival times .................................. (K,) np array
         A: Amplitudes ...................................... (K,) np array
@@ -131,11 +136,13 @@ def amp_ta(
     Lastly, Tend = ta_K+T_K.
     All time is normalized by duration time.
     """
+    import warnings
     import numpy as np
 
-    distlist = ['exp','deg','ray','unif','unifc','gam','alap', 'pareto']
-    assert(TWdist in distlist[:-2]), 'Invalid TWdist'
-    assert(Adist in distlist), 'Invalid Adist'
+    distlist_A = ['exp','deg','ray','unif','gam','alap','norm','Lomax','bpareto']
+    distlist_TW = ['exp','deg','ray','unif','gam']
+    assert(TWdist in distlist_TW), 'Invalid TWdist'
+    assert(Adist in distlist_A), 'Invalid Adist'
 
     prngTW = np.random.RandomState(seed=seedTW)
     prngA = np.random.RandomState(seed=seedA)
@@ -153,7 +160,8 @@ def amp_ta(
         TW = prngTW.rayleigh(scale=np.sqrt(2./np.pi)*tw, size=K)
     elif TWdist == 'unif':
         assert(TWkappa>=0.), 'TWkappa>=0 for TWdist uniform'
-        TW = prngTW.uniform(low=TWkappa, high=TWkappa+2*tw, size=K)
+        #TW = prngTW.uniform(low=TWkappa, high=TWkappa+2*tw, size=K) @Audun I don't understand your previous implementation
+        TW = prngTW.uniform(low=(1-TWkappa)*tw, high=(1+TWkappa)*tw, size=K)
     elif TWdist == 'gam':
         TW = prngTW.gamma(TWkappa, scale=tw/TWkappa, size=K)
 
@@ -169,14 +177,22 @@ def amp_ta(
     elif Adist == 'ray':
         A = prngA.rayleigh(scale=np.sqrt(2./np.pi)*mA, size=K)
     elif Adist == 'unif':
-        A = prngA.uniform(low=kappa, high=kappa+2.*mA, size=K)
+        #A = prngA.uniform(low=kappa, high=kappa+2.*mA, size=K)
+        A = prngA.uniform(low=mA-kappa, high=mA+kappa, size=K)
     elif Adist == 'gam':
         A = prngA.gamma(kappa, scale=mA/kappa, size=K)
     elif Adist == 'alap':
         A = sample_asymm_laplace(
                 alpha=mA*0.5/np.sqrt(1.-2.*kappa*(1.-kappa)), kappa=kappa,
                 size=K, seed=seedA)
-    elif Adist == 'pareto':
+    elif Adist == 'norm':
+        A = prngA.normal( loc=0 , scale=1 , size=K)
+    elif Adist == 'Lomax':
+        if(kappa<=1):
+                warnings.warn(
+                'Mean value of pareto II distribution with kappa <=1 is undefined.')
+        A = prngA.pareto(a=kappa, size=K)*(kappa-1)
+    elif Adist == 'bpareto':
         A = sample_bounded_Pareto(alpha=kappa, L=1, H=mA, size=K, seed=seedA)
 
     return A, ta, Tend
@@ -212,7 +228,7 @@ def td_dist(
                 (for TWdist, kappa >=0.)
         'gam': gamma distribution with shape parameter kappa
                and scale parameter m/kappa (so m is the mean value)
-        'pareto': (only Adist) bounded pareto distribution.
+        'bpareto': (only Adist) bounded pareto distribution.
                   Lower bound 1 and upper bound mA. Scale kappa.
     #########################################################################################################################
     Output:
@@ -222,7 +238,7 @@ def td_dist(
     """
     import numpy as np
 
-    distlist = ['exp','deg','ray','unif','gam','pareto']
+    distlist = ['exp','deg','ray','unif','gam','bpareto']
     assert(TDdist in distlist), 'Invalid TDdist'
 
     prngTD = np.random.RandomState(seed=seedTD)
@@ -239,7 +255,7 @@ def td_dist(
         TD = prngTD.uniform(low=TDkappa, high=2- TDkappa, size=K)
     elif TDdist == 'gam':
         TD = prngTD.gamma(TDkappa, scale=1/TDkappa, size=K)
-    elif TDdist == 'pareto':
+    elif TDdist == 'bpareto':
         TD = sample_bounded_Pareto(alpha=0.1, L=1, H=10, size=K, seed=seedTD)-1
     
     return TD
@@ -466,7 +482,7 @@ def make_signal(
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
         kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
-        TDdist='deg', seedTD=None , TDkappa=0):
+        TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True):
     """
     Use:
         make_signal(
@@ -479,6 +495,7 @@ def make_signal(
     Input:
         See the other functions for explanation.
         amptd: If True, returns amplitudes and duration times as well.
+        skip_transient: If True, signal starts with pusle with amplitude <Phi>
     Output:
         The output is given in the following order:
         T, S, S+dynamic noise, S+additive noise, A, ta, td
@@ -509,7 +526,13 @@ def make_signal(
                 kernsize=kernsize, kerntype=kerntype,
                 lam=lam, dkern=dkern, tol=tol,
                 noise_seed=noise_seed)
-
+    if skip_transient:
+        #Add pulse with amplitude <Phi> at t=0 in order to avoid transient 
+        initial_pulse = gamma*kern(tkern=T, kerntype=kerntype, lam=lam, 
+                             dkern=dkern, tol=1e-5, shape=kernshape, td=1)
+    
+        S += initial_pulse
+    
     res = (T,S)
     if dynamic:
         res += (S+X[0],)
