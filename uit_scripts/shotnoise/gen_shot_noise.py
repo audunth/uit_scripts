@@ -344,7 +344,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1):
 
 def signal_convolve(
         A, ta, Tend, dt,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, round_ta=True):
     """
     Use:
         signal_convolve(
@@ -366,6 +366,8 @@ def signal_convolve(
         dt: Time step. Should be 10^(-2) or smaller. .......... float
         kernsize: the kernel is 2*kernsize+1 data points. ..... int
         kerntype, lam, dkern, tol: See the kern() function.
+        round_ta: if True, arrival times are rounded to
+                  closest index................................ bool
     Output:
         T: time array with N = ceil(Tend/dt).astype(int)+1. ... (N,) np array
         S: shot noise signal of lenght len(T). ................ (N,) np array
@@ -378,15 +380,25 @@ def signal_convolve(
     T = np.arange(0, np.ceil(Tend/dt).astype(int)+1)*dt
     tkern = np.arange(-kernsize, kernsize+1)*dt
 
-    def genF():
-        # Make a K-sized array of arrival time indexes
-        ta_index = np.ceil(ta/dt).astype(int)
-        F = np.zeros(T.size)
-        for i in range(ta_index.size):
-            F[ta_index[i]] += A[i]  # This may need to be multiplied by td.
+    def genF(round_ta=True):
+        if round_ta:
+            # Make a K-sized array of arrival time indexes
+            ta_index = np.ceil(ta/dt).astype(int)
+            F = np.zeros(T.size)
+            for i in range(ta_index.size):
+                F[ta_index[i]] += A[i]  # This may need to be multiplied by td.
+        else:
+            # Make a K-sized array of arrival time indexes
+            ta_ceil = np.ceil(ta/dt).astype(int)
+            ta_floor = np.floor(ta/dt).astype(int)
+            diff = ta/dt - ta_floor
+            F = np.zeros(T.size)
+            for i in range(ta_ceil.size):
+                F[ta_floor[i]] += A[i]  * (1 -diff[i])
+                F[ta_ceil[i]] += A[i]  * diff[i]
         return F
 
-    F = genF()
+    F = genF(round_ta=round_ta)
     G = kern(tkern, kerntype, lam, dkern, tol, shape=kernshape)
     S = fftconvolve(F, G, 'same')
 
@@ -408,6 +420,7 @@ def signal_superposition(
         ta: Arrival times of pulses. .......................... (K,) np array
         Tend: Time length of signal. .......................... float
         dt: Time step. ........................................ float
+        td: Duration times of pulses. ......................... (K,) np array
         kerntype, lam, dkern: See the kern() function.
     Output:
         T: time array with N = ceil(Tend/dt).astype(int)+1. ... (N,) np array
@@ -418,7 +431,7 @@ def signal_superposition(
     import numpy as np
 
     T = np.arange(0, np.ceil(Tend/dt).astype(int)+1)*dt
-
+    print(T.size)
     S = np.zeros(T.size)
     K = A.size
 
@@ -482,7 +495,7 @@ def make_signal(
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
         kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
-        TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True):
+        TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True,round_ta=True):
     """
     Use:
         make_signal(
@@ -512,7 +525,7 @@ def make_signal(
         T, S = signal_convolve(
                 A, ta, Tend, dt,
                 kernsize=kernsize, kerntype=kerntype,
-                lam=lam, dkern=dkern, tol=tol, kernshape=kernshape)
+                lam=lam, dkern=dkern, tol=tol, kernshape=kernshape,round_ta=round_ta)
     else:
         td = td_dist(K, TDdist=TDdist, seedTD=seedTD , TDkappa=TDkappa)
 
@@ -527,9 +540,10 @@ def make_signal(
                 lam=lam, dkern=dkern, tol=tol,
                 noise_seed=noise_seed)
     if skip_transient:
-        #Add pulse with amplitude <Phi> at t=0 in order to avoid transient 
+        #Add pulse with amplitude <Phi> at t=0 in order to avoid transient
+        #Tolerance is set arbitrarily high 
         initial_pulse = gamma*kern(tkern=T, kerntype=kerntype, lam=lam, 
-                             dkern=dkern, tol=1e-5, shape=kernshape, td=1)
+                             dkern=dkern, tol=100, shape=kernshape, td=1)
     
         S += initial_pulse
     
