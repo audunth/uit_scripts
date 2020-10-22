@@ -250,8 +250,8 @@ def td_dist(
     elif TDdist == 'ray':
         TD = prngTD.rayleigh(scale=np.sqrt(2./np.pi), size=K)
     elif TDdist == 'unif':
-        assert(TWkappa>=0.), 'TWkappa>=0 for TWdist uniform'
-        assert(TWkappa<=1.), 'TWkappa>=1 for TWdist uniform'
+        assert(TDkappa>=0.), 'TDkappa>=0 for TWdist uniform'
+        assert(TDkappa<=1.), 'TDkappa>=1 for TWdist uniform'
         TD = prngTD.uniform(low=TDkappa, high=2- TDkappa, size=K)
     elif TDdist == 'gam':
         TD = prngTD.gamma(TDkappa, scale=1/TDkappa, size=K)
@@ -344,7 +344,7 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1):
 
 def signal_convolve(
         A, ta, Tend, dt,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, round_ta=True):
+        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, round_ta=False):
     """
     Use:
         signal_convolve(
@@ -431,7 +431,7 @@ def signal_superposition(
     import numpy as np
 
     T = np.arange(0, np.ceil(Tend/dt).astype(int)+1)*dt
-    print(T.size)
+
     S = np.zeros(T.size)
     K = A.size
 
