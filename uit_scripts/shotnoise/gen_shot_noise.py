@@ -73,7 +73,8 @@ def sample_bounded_Pareto(alpha = 1., L = 1., H = 100., size=None, seed=None):
 
 def amp_ta(
         gamma, K, Kdist=False, mA=1., kappa=0.5, TWkappa = 0.,
-        TWdist='exp', Adist='exp', seedTW=None, seedA=None):
+        TWdist='exp', Adist='exp', seedTW=None, seedA=None,
+        TWparW=10, AparW =10):
     """
     Use:
         amp_ta(
@@ -94,6 +95,7 @@ def amp_ta(
         TWdist: Waiting time distribution (see below) ...... int in range(5)
         Adist: Amplitude distribution (see below) .......... int in range(8)
         seedTW/A: Specify a random seed for TWdist/Adist ... int
+        TWparW/AparW: Width for pareto distribution ........ float
     Options for distributions are (where m denotes either mA or tw=1/gamma):
         Note: Using a distribution which gives negative values for the
         waiting times gives an error.
@@ -109,13 +111,13 @@ def amp_ta(
                and scale parameter m/kappa (so m is the mean value)
         'alap': (only Adist) asymmetric laplace distribution with rms-value m
                 and asymmetry parameter kappa.
-        'Lomax': pareto II or Lomax distribution with kappa as shape parameter
-                 The classical Pareto distribution can be obtained from the 
-                 Lomax distribution by adding 1 and multiplying by the scale parameter m.
-        'bpareto': (only Adist) bounded pareto distribution.
-                  Lower bound 1 and upper bound mA. Scale kappa.
         'norm': (only Adist) normal distribution
                 normalized to <A>=0 and A_rms = 1
+        'pareto': pareto distribution. 
+                  TWkappa/kappa serves as shape parameter (usually alpha)
+        'bpareto': bounded pareto distribution. 
+                  TWkappa/kappa serves as shape parameter (usually alpha)
+                  TWparW/AparW as with parameter 
     Output:
         ta: Arrival times .................................. (K,) np array
         A: Amplitudes ...................................... (K,) np array
@@ -139,8 +141,8 @@ def amp_ta(
     import warnings
     import numpy as np
 
-    distlist_A = ['exp','deg','ray','unif','gam','alap','norm','Lomax','bpareto']
-    distlist_TW = ['exp','deg','ray','unif','gam']
+    distlist_A = ['exp','deg','ray','unif','gam','alap','norm','pareto','bpareto']
+    distlist_TW = ['exp','deg','ray','unif','gam','pareto','bpareto']
     assert(TWdist in distlist_TW), 'Invalid TWdist'
     assert(Adist in distlist_A), 'Invalid Adist'
 
@@ -164,6 +166,33 @@ def amp_ta(
         TW = prngTW.uniform(low=(1-TWkappa)*tw, high=(1+TWkappa)*tw, size=K)
     elif TWdist == 'gam':
         TW = prngTW.gamma(TWkappa, scale=tw/TWkappa, size=K)
+    elif TWdist == 'pareto':
+        assert(TWkappa > 2), 'Invalid shape parameter for pareto'
+        from scipy.stats import rv_continuous
+
+        class pareto_gen(rv_continuous):
+            def _pdf(self,t, alpha):
+                return (alpha-2)**(alpha-1)/(alpha-1)**(alpha-2)*t**(-alpha)
+
+        pareto = pareto_gen(a=((TWkappa-2)/(TWkappa-1)), name='pareto')
+        TW = pareto.rvs(alpha=TWkappa, size=K)
+
+    elif TWdist == 'bpareto':
+        assert(TWkappa > 1), 'Invalid shape parameter for pareto'
+        assert(TWkappa != 2.0), 'Invalid shape parameter for pareto'
+        assert(TWparW > 1.0), 'Invalid width parameter for pareto'
+
+        from scipy.stats import rv_continuous
+
+        class bounded_pareto_gen(rv_continuous):
+            def _pdf(self,x, alpha, width):
+                return (-1.0+alpha)*x**(-alpha)*  ((-1.0+alpha)*(-1.0+width**(2.0-alpha)) / ((-2.0+alpha)*(-1.0+width**(1.0-alpha))) )**(1.0-alpha) / (1.0-width**(1.0-alpha))
+
+        tau_min = (TWkappa - 2.0) * (-1.0 + pow(TWparW, 1.0 - TWkappa)) / ((TWkappa - 1.0) * (-1.0 + pow(TWparW, 2.0 - TWkappa)))
+        tau_max = TWparW * (TWkappa - 2.0) * (-1.0 + pow(TWparW, 1.0 - TWkappa)) /( (TWkappa - 1.0) * (-1.0 + pow(TWparW, 2.0 - TWkappa)))
+
+        bounded_pareto = bounded_pareto_gen(a=tau_min, b=tau_max, name='bpareto')
+        TW = bounded_pareto.rvs(alpha=TWkappa, width = TWparW,  size=K)
 
     TW = np.insert(TW, 0, 0.)
     ta = np.cumsum(TW[:-1])
@@ -192,9 +221,32 @@ def amp_ta(
                 warnings.warn(
                 'Mean value of pareto II distribution with kappa <=1 is undefined.')
         A = prngA.pareto(a=kappa, size=K)*(kappa-1)
-    elif Adist == 'bpareto':
-        A = sample_bounded_Pareto(alpha=kappa, L=1, H=mA, size=K, seed=seedA)
 
+    elif Adist == 'pareto':
+        assert(kappa > 2), 'Invalid shape parameter for pareto'
+        from scipy.stats import rv_continuous
+        class pareto_gen(rv_continuous):
+            def _pdf(self,t, alpha):
+                return (alpha-2)**(alpha-1)/(alpha-1)**(alpha-2)*t**(-alpha)
+
+        pareto = pareto_gen(a=((kappa-2)/(kappa-1)), name='pareto')
+        A = pareto.rvs(alpha=kappa, size=K)
+
+    elif Adist == 'bpareto':
+        assert(kappa > 1), 'Invalid shape parameter for pareto'
+        assert(kappa != 2.0), 'Invalid shape parameter for pareto'
+        assert(AparW > 1.0), 'Invalid width parameter for pareto'
+        from scipy.stats import rv_continuous
+
+        class bounded_pareto_gen(rv_continuous):
+            def _pdf(self,x, alpha, width):
+                return (-1.0+alpha)*x**(-alpha)*  ((-1.0+alpha)*(-1.0+width**(2.0-alpha)) / ((-2.0+alpha)*(-1.0+width**(1.0-alpha))) )**(1.0-alpha) / (1.0-width**(1.0-alpha))
+
+        tau_min = (kappa - 2.0) * (-1.0 + pow(AparW, 1.0 - kappa)) / ((kappa - 1.0) * (-1.0 + pow(AparW, 2.0 - kappa)))
+        tau_max = AparW * (kappa - 2.0) * (-1.0 + pow(AparW, 1.0 - kappa)) /( (kappa - 1.0) * (-1.0 + pow(AparW, 2.0 - kappa)))
+
+        bounded_pareto = bounded_pareto_gen(a=tau_min, b=tau_max, name='bpareto')
+        A = bounded_pareto.rvs(alpha=kappa, width = AparW,  size=K)
     return A, ta, Tend
 
 def td_dist(
@@ -495,7 +547,8 @@ def make_signal(
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
         kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
-        TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True,round_ta=True):
+        TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True,round_ta=True,
+        TWparW=10, AparW =10):
     """
     Use:
         make_signal(
@@ -519,7 +572,8 @@ def make_signal(
     import numpy as np
     A, ta, Tend = amp_ta(
             gamma, K, Kdist=Kdist, mA=mA, kappa=kappa, TWkappa = TWkappa,
-            TWdist=TWdist, Adist=Adist, seedTW=seedTW, seedA=seedA)
+            TWdist=TWdist, Adist=Adist, seedTW=seedTW, seedA=seedA, 
+            TWparW=TWparW, AparW =AparW)
 
     if convolve:
         T, S = signal_convolve(
