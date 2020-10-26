@@ -168,6 +168,10 @@ def amp_ta(
         TW = prngTW.gamma(TWkappa, scale=tw/TWkappa, size=K)
     elif TWdist == 'pareto':
         assert(TWkappa > 2), 'Invalid shape parameter for pareto'
+        import warnings
+        if TWkappa < 2.3:
+            warnings.warn(
+                    'For TWkappa close to 2 many events needed for <TD> = 1.')
         from scipy.stats import rv_continuous
 
         class pareto_gen(rv_continuous):
@@ -224,6 +228,10 @@ def amp_ta(
 
     elif Adist == 'pareto':
         assert(kappa > 2), 'Invalid shape parameter for pareto'
+        import warnings
+        if kappa < 2.3:
+            warnings.warn(
+                    'For kappa close to 2 many events needed for <TD> = 1.')
         from scipy.stats import rv_continuous
         class pareto_gen(rv_continuous):
             def _pdf(self,t, alpha):
@@ -250,7 +258,7 @@ def amp_ta(
     return A, ta, Tend
 
 def td_dist(
-        K, TDdist='exp', seedTD=None , TDkappa=0):
+        K, TDdist='exp', seedTD=None , TDkappa=0, TDparW=10):
     """
     Use:
         amp_ta(
@@ -263,11 +271,9 @@ def td_dist(
         K: Number of arrivals. See Kdist, below ............ int
         TDdist: Duration time distribution (see below) ..... int in range(6)
         seedTD: Specify a random seed for TD ............... int
+        TDkappa: asymmetry/width parameter for TWdist. ..... float
+        TDparW: Width for pareto distribution .............. float
     Options for distributions are:
-    #########################################################################################################################
-        Change after implentation done
-
-
         Note: Using a distribution which gives negative values for the
         duration times gives an error.
         'exp': exponential with scale parameter m
@@ -280,9 +286,11 @@ def td_dist(
                 (for TWdist, kappa >=0.)
         'gam': gamma distribution with shape parameter kappa
                and scale parameter m/kappa (so m is the mean value)
-        'bpareto': (only Adist) bounded pareto distribution.
-                  Lower bound 1 and upper bound mA. Scale kappa.
-    #########################################################################################################################
+        'pareto': pareto distribution. 
+                  TDkappa serves as shape parameter (usually alpha)
+        'bpareto': bounded pareto distribution. 
+                  TWkappa serves as shape parameter (usually alpha)
+                  TDparW as with parameter 
     Output:
         td: Duration times ................................. (K,) np array
 
@@ -290,7 +298,7 @@ def td_dist(
     """
     import numpy as np
 
-    distlist = ['exp','deg','ray','unif','gam','bpareto']
+    distlist = ['exp','deg','ray','unif','gam','pareto','bpareto']
     assert(TDdist in distlist), 'Invalid TDdist'
 
     prngTD = np.random.RandomState(seed=seedTD)
@@ -307,9 +315,35 @@ def td_dist(
         TD = prngTD.uniform(low=TDkappa, high=2- TDkappa, size=K)
     elif TDdist == 'gam':
         TD = prngTD.gamma(TDkappa, scale=1/TDkappa, size=K)
+    elif TDdist == 'pareto':
+        assert(TDkappa > 2), 'Invalid shape parameter for pareto'
+        import warnings
+        if TDkappa < 2.3:
+            warnings.warn(
+                    'For TDkappa close to 2 many events needed for <TD> = 1.')
+        from scipy.stats import rv_continuous
+        class pareto_gen(rv_continuous):
+            def _pdf(self,t, alpha):
+                return (alpha-2)**(alpha-1)/(alpha-1)**(alpha-2)*t**(-alpha)
+
+        pareto = pareto_gen(a=((TDkappa-2)/(TDkappa-1)), name='pareto')
+        TD = pareto.rvs(alpha=TDkappa, size=K)
     elif TDdist == 'bpareto':
-        TD = sample_bounded_Pareto(alpha=0.1, L=1, H=10, size=K, seed=seedTD)-1
-    
+        assert(TDkappa > 1), 'Invalid shape parameter for pareto'
+        assert(TDkappa != 2.0), 'Invalid shape parameter for pareto'
+        assert(TDparW > 1.0), 'Invalid width parameter for pareto'
+        from scipy.stats import rv_continuous
+
+        class bounded_pareto_gen(rv_continuous):
+            def _pdf(self,x, alpha, width):
+                return (-1.0+alpha)*x**(-alpha)*  ((-1.0+alpha)*(-1.0+width**(2.0-alpha)) / ((-2.0+alpha)*(-1.0+width**(1.0-alpha))) )**(1.0-alpha) / (1.0-width**(1.0-alpha))
+
+        tau_min = (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) / ((TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
+        tau_max = TDparW * (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) /( (TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
+
+        bounded_pareto = bounded_pareto_gen(a=tau_min, b=tau_max, name='bpareto')
+        TD = bounded_pareto.rvs(alpha=TDkappa, width = TDparW,  size=K)
+
     return TD
 
 
@@ -548,7 +582,7 @@ def make_signal(
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
         kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
         TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True,round_ta=True,
-        TWparW=10, AparW =10):
+        TWparW=10, AparW =10, TDparW=10):
     """
     Use:
         make_signal(
@@ -581,7 +615,7 @@ def make_signal(
                 kernsize=kernsize, kerntype=kerntype,
                 lam=lam, dkern=dkern, tol=tol, kernshape=kernshape,round_ta=round_ta)
     else:
-        td = td_dist(K, TDdist=TDdist, seedTD=seedTD , TDkappa=TDkappa)
+        td = td_dist(K, TDdist=TDdist, seedTD=seedTD , TDkappa=TDkappa, TDparW=TDparW)
 
         T, S = signal_superposition(
                 A, ta, Tend, dt,
