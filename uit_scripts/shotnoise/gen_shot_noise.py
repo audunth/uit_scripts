@@ -347,29 +347,29 @@ def td_dist(
     return TD
 
 
-def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1): 
+def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1): 
     """
     Use:
-        kern(tkern, kerntype = 0, lam = 0.5, dkern = False, tol=1e-5)
+        kern(tkern, kerntype = '1-exp', lam = 0.5, dkern = False, tol=1e-5)
 
     Returns the kernel (or pulse shape)
     Input:
         tkern: Time array for the computation. ............... (N,) np array
         kerntype: Kernel to use in the convolution: .......... int in range(10)
-            0: one-sided exponential pulse
-            1: two-sided exponential pulse (requires lam in (0,1)).
-            2: Lorenz pulse
-            3: Gaussian pulse
-            4: Sech pulse
-            5: Box pulse
-            6: Triangular pulse
-            7: Rayleigh pulse
-            8: Gamma pulse
-            9: Pareto pulse
-            10: Laplace pulse
+            1-exp:      one-sided exponential pulse
+            2-exp:      two-sided exponential pulse (requires lam in (0,1)).
+            lorenz:     Lorenz pulse
+            gauss:      Gaussian pulse
+            sech:       Sech pulse
+            box:        Box pulse
+            triang:     Triangular pulse
+            rayleigh:   Rayleigh pulse
+            gamma:      Gamma pulse
+            pareto:     Pareto pulse
+            lpaplace:   Laplace pulse
         lam: Asymmetry of the two-sided exponential pulse. ... float in (0.,1.)
         dkern: Use the derivative of the kernel?  ............ bool
-            Currently only implemented for kerntype=1.
+            Currently only implemented for kerntype='2-exp'.
         tol: Error tolerance for end effects. ................ float
         shape: Shape parameter for Gamma and Pareto pulse. ... float > 0
         scale: scale parameter where needed. ................. float > 0
@@ -381,12 +381,13 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1):
     """
     import numpy as np
     import warnings
-    assert(kerntype in range(11))
+    kerntypelist = ['1-exp','2-exp','lorenz','gauss', 'sech', 'box', 'triang', 'rayleigh', 'gamma', 'pareto', 'laplace']
+    assert(kerntype in kerntypelist), 'Invalid kerntype'
     assert(shape > 0.) 
     kern = np.zeros(tkern.size)
-    if kerntype == 0:
+    if kerntype == '1-exp':
         kern[tkern >= 0] = np.exp(-tkern[tkern >= 0]/td)
-    elif kerntype == 1:
+    elif kerntype == '2-exp':
         assert((lam > 0.) & (lam < 1.))
         if dkern:
             # duration time not implemented for derivative yet
@@ -395,28 +396,28 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1):
         else:
             kern[tkern < 0] = np.exp(tkern[tkern < 0] / lam/td)
             kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / (1-lam)/td)
-    elif kerntype == 2:
+    elif kerntype == 'lorenz':
         kern = (np.pi*(1+(tkern/td)**2))**(-1)
-    elif kerntype == 3:
+    elif kerntype == 'gauss':
         kern = np.exp(-(tkern/td)**2/2)/(np.sqrt(2*np.pi))
-    elif kerntype == 4:
+    elif kerntype == 'sech':
         kern = (np.pi*np.cosh(tkern/td))**(-1)
-    elif kerntype == 5:
+    elif kerntype == 'box':
         kern[tkern >-0.5*td] = 1
         kern[tkern > 0.5*td] = 0
-    elif kerntype == 6:
+    elif kerntype == 'triang':
         kern[tkern >= -1*td] = 1 + tkern[tkern >= -1*td]/td
         kern[tkern >= 0*td] = 1 - tkern[tkern >= 0*td]/td
         kern[tkern >= 1*td] = 0
-    elif kerntype == 7:
+    elif kerntype == 'rayleigh':
         kern[tkern >= 0] = tkern[tkern >= 0]/td * np.exp( - (tkern[tkern >= 0]/td)**2/2)
-    elif kerntype == 8:
+    elif kerntype == 'gamma':
         from scipy.special import gamma as Ga
         kern[tkern >= 0] = 1/Ga(shape) * (tkern[tkern >= 0]/td)**(shape-1) * np.exp( - (tkern[tkern >= 0]/td))
-    elif kerntype == 9:
+    elif kerntype == 'pareto':
         # add 1 to tkern -> peak of pulse is at t=0
         kern[tkern >= 0] = shape/(tkern[tkern >= 0]/td+1)**(shape+1)
-    elif kerntype == 10:
+    elif kerntype == 'laplace':
         kern = 0.5 * np.exp(-np.abs(tkern/td))
 
 
@@ -430,12 +431,12 @@ def kern(tkern, kerntype=0, lam=0.5, dkern=False, tol=1e-5, shape=1, td=1):
 
 def signal_convolve(
         A, ta, Tend, dt,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, round_ta=False):
+        kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, kernshape=1, round_ta=False):
     """
     Use:
         signal_convolve(
             A, ta, Tend, dt,
-            kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5)
+            kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5)
 
     The shot noise process can be calculated as S(t) = [G*F](t)
     where * denotes a convolution, G is a kernel function and
@@ -493,12 +494,12 @@ def signal_convolve(
 
 def signal_superposition(
         A, ta, Tend, dt, td,
-        kerntype=0, lam=0.5, dkern=False, kernshape=1):
+        kerntype='1-exp', lam=0.5, dkern=False, kernshape=1):
     """
     Use:
         signal_superposition(
             A, ta, Tend, dt,
-            kerntype=0, lam=0.5, dkern=False)
+            kerntype='1-exp', lam=0.5, dkern=False)
 
     Calculates a shot noise process as a superposition of pulses.
     Input:
@@ -531,13 +532,13 @@ def signal_superposition(
 
 def gen_noise(
         gamma, eps, T, mA=1.,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5,
+        kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5,
         noise_seed=None):
     """
     Use:
         gen_noise(
             gamma, eps, T, mA=1.,
-            kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5,
+            kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5,
             noise_seed=None)
     Calculates zero-mean normally distributed noise for the shot noise process.
     Input:
@@ -580,7 +581,7 @@ def make_signal(
         gamma, K, dt, Kdist=False, mA=1., kappa=0.5, TWkappa=0, ampta=False,
         TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
         dynamic=False, additive=False, eps=0.1, noise_seed=None,
-        kernsize=2**11, kerntype=0, lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
+        kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, kernshape=1, 
         TDdist='deg', seedTD=None , TDkappa=0,skip_transient=True,round_ta=True,
         TWparW=10, AparW =10, TDparW=10):
     """
@@ -589,7 +590,7 @@ def make_signal(
             gamma, K, dt, Kdist=False, mA=1.,kappa=0.5, TWkappa=0, ampta=False,
             TWdist='exp', Adist='exp', seedTW=None, seedA=None, convolve=True,
             dynamic=False, additive=False, eps=0.1, noise_seed=None,
-            kernsize=2**11, kerntype=0, lam=0.5, dkern=False)
+            kernsize=2**11, kerntype='1-exp', lam=0.5, dkern=False)
 
     Meta-function with all options. Calls all the above functions.
     Input:
