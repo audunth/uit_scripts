@@ -8,4 +8,4 @@ We strongly recommend installing the current version of uit_scritps via pip:
 ```
 git clone https://github.com/audunth/uit_scripts.git
 pip install -e .
-'''
+```
