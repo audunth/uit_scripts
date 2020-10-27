@@ -358,7 +358,7 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
         kerntype: Kernel to use in the convolution: .......... int in range(10)
             1-exp:      one-sided exponential pulse
             2-exp:      two-sided exponential pulse (requires lam in (0,1)).
-            lorenz:     Lorenz pulse
+            lorentz:     Lorentz pulse
             gauss:      Gaussian pulse
             sech:       Sech pulse
             box:        Box pulse
@@ -381,7 +381,7 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
     """
     import numpy as np
     import warnings
-    kerntypelist = ['1-exp','2-exp','lorenz','gauss', 'sech', 'box', 'triang', 'rayleigh', 'gamma', 'pareto', 'laplace']
+    kerntypelist = ['1-exp','2-exp','lorentz','gauss', 'sech', 'box', 'triang', 'rayleigh', 'gamma', 'pareto', 'laplace']
     assert(kerntype in kerntypelist), 'Invalid kerntype'
     assert(shape > 0.) 
     kern = np.zeros(tkern.size)
@@ -396,7 +396,7 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
         else:
             kern[tkern < 0] = np.exp(tkern[tkern < 0] / lam/td)
             kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / (1-lam)/td)
-    elif kerntype == 'lorenz':
+    elif kerntype == 'lorentz':
         kern = (np.pi*(1+(tkern/td)**2))**(-1)
     elif kerntype == 'gauss':
         kern = np.exp(-(tkern/td)**2/2)/(np.sqrt(2*np.pi))
