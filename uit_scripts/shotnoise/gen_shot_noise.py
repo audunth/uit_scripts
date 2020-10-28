@@ -220,11 +220,6 @@ def amp_ta(
                 size=K, seed=seedA)
     elif Adist == 'norm':
         A = prngA.normal( loc=0 , scale=1 , size=K)
-    elif Adist == 'Lomax':
-        if(kappa<=1):
-                warnings.warn(
-                'Mean value of pareto II distribution with kappa <=1 is undefined.')
-        A = prngA.pareto(a=kappa, size=K)*(kappa-1)
 
     elif Adist == 'pareto':
         assert(kappa > 2), 'Invalid shape parameter for pareto'
