@@ -7,5 +7,6 @@ Mainly created by Ralph Kube, Audun Theodorsen and Gregor Decristoforo.
 We strongly recommend installing the current version of uit_scritps via pip:
 ```
 git clone https://github.com/audunth/uit_scripts.git
+cd uit_scripts
 pip install -e .
 ```
