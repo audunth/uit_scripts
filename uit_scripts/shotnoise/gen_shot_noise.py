@@ -366,7 +366,7 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
             rayleigh:   Rayleigh pulse
             gamma:      Gamma pulse
             pareto:     Pareto pulse
-            lpaplace:   Laplace pulse
+            laplace:   Laplace pulse
         lam: Asymmetry of the two-sided exponential pulse. ... float in (0.,1.)
         dkern: Use the derivative of the kernel?  ............ bool
             Currently only implemented for kerntype='2-exp'.
