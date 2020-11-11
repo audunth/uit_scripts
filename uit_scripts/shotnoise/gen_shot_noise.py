@@ -157,7 +157,7 @@ def find_nearest(array, value):
         idx.append((np.abs(array - i)).argmin())
     return idx
 
-def create_ampta(rate, gamma, K):
+def create_ta(rate, gamma, K):
     """Create arrival times (or waiting time scales) based on either
     of three different versions. The function 'create_rate' is called
     which generates the rate process that this function depend on.
@@ -321,7 +321,7 @@ def amp_ta(
             tw = 1./gamma
         # K random waiting times (np.ndarray)
         elif rate[1] == '2-rd-tw':
-            tw, _, _ = create_ampta(rate, gamma, K)
+            tw, _, _ = create_ta(rate, gamma, K)
         # Generate based on either constant float or array with dim. (K,)
         if TWdist == 'exp':
             TW = prngTW.exponential(scale=tw, size=K)
@@ -339,7 +339,7 @@ def amp_ta(
         ta = np.cumsum(TW[:-1])
         Tend = ta[-1] + TW[-1]
     elif rate[1] in ['int', 'tick']:
-        ta, K, Tend = create_ampta(rate, gamma, K)
+        ta, K, Tend = create_ta(rate, gamma, K)
 
     # Generate amplitudes
     if Adist == 'exp':
