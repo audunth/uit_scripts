@@ -356,13 +356,14 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
             lorentz:     Lorentz pulse
             gauss:      Gaussian pulse
             sech:       Sech pulse
+            asech:      Asymmetric Sech pulse
             box:        Box pulse
             triang:     Triangular pulse
             rayleigh:   Rayleigh pulse
             gamma:      Gamma pulse
             pareto:     Pareto pulse
             laplace:   Laplace pulse
-        lam: Asymmetry of the two-sided exponential pulse. ... float in (0.,1.)
+        lam: Asymmetry of the two-sided exponential and asymmetric sech pulse. ... float in (0.,1.)
         dkern: Use the derivative of the kernel?  ............ bool
             Currently only implemented for kerntype='2-exp'.
         tol: Error tolerance for end effects. ................ float
@@ -376,7 +377,7 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
     """
     import numpy as np
     import warnings
-    kerntypelist = ['1-exp','2-exp','lorentz','gauss', 'sech', 'box', 'triang', 'rayleigh', 'gamma', 'pareto', 'laplace']
+    kerntypelist = ['1-exp','2-exp','lorentz','gauss', 'sech', 'asech','box', 'triang', 'rayleigh', 'gamma', 'pareto', 'laplace']
     assert(kerntype in kerntypelist), 'Invalid kerntype'
     assert(shape > 0.) 
     kern = np.zeros(tkern.size)
@@ -397,6 +398,8 @@ def kern(tkern, kerntype='1-exp', lam=0.5, dkern=False, tol=1e-5, shape=1, td=1)
         kern = np.exp(-(tkern/td)**2/2)/(np.sqrt(2*np.pi))
     elif kerntype == 'sech':
         kern = (np.pi*np.cosh(tkern/td))**(-1)
+    elif kerntype == 'asech':
+        kern = np.sin(np.pi*lam)*((1-lam)*lam*np.pi)**(-1)*(np.exp(-(tkern/td)/lam) + np.exp((tkern/td)/(1-lam)))**(-1)
     elif kerntype == 'box':
         kern[tkern >-0.5*td] = 1
         kern[tkern > 0.5*td] = 0
