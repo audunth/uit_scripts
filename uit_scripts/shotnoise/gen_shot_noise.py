@@ -307,7 +307,7 @@ def td_dist(
     elif TDdist == 'unif':
         assert(TDkappa>=0.), 'TDkappa>=0 for TWdist uniform'
         assert(TDkappa<=1.), 'TDkappa>=1 for TWdist uniform'
-        TD = prngTD.uniform(low=TDkappa, high=2- TDkappa, size=K)
+        TD = prngTD.uniform(low=1-TDkappa, high=1 + TDkappa, size=K)
     elif TDdist == 'gam':
         TD = prngTD.gamma(TDkappa, scale=1/TDkappa, size=K)
     elif TDdist == 'pareto':
