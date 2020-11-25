@@ -324,17 +324,27 @@ def td_dist(
         pareto = pareto_gen(a=((TDkappa-2)/(TDkappa-1)), name='pareto')
         TD = pareto.rvs(alpha=TDkappa, size=K)
     elif TDdist == 'bpareto':
-        assert(TDkappa > 1), 'Invalid shape parameter for pareto'
-        assert(TDkappa != 2.0), 'Invalid shape parameter for pareto'
+        assert(TDkappa >= 1.0), 'Invalid shape parameter for pareto'
         assert(TDparW > 1.0), 'Invalid width parameter for pareto'
         from scipy.stats import rv_continuous
 
         class bounded_pareto_gen(rv_continuous):
             def _pdf(self,x, alpha, width):
-                return (-1.0+alpha)*x**(-alpha)*  ((-1.0+alpha)*(-1.0+width**(2.0-alpha)) / ((-2.0+alpha)*(-1.0+width**(1.0-alpha))) )**(1.0-alpha) / (1.0-width**(1.0-alpha))
-
-        tau_min = (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) / ((TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
-        tau_max = TDparW * (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) /( (TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
+                if(alpha == 1):
+                    return (x*np.log(width))**(-1)
+                elif(alpha == 2):
+                    return (x**2*np.log(width))**(-1)
+                else:
+                    return (-1.0+alpha)*x**(-alpha)*  ((-1.0+alpha)*(-1.0+width**(2.0-alpha)) / ((-2.0+alpha)*(-1.0+width**(1.0-alpha))) )**(1.0-alpha) / (1.0-width**(1.0-alpha))
+        if(TDkappa == 1):
+            tau_min = np.log(TDparW)/(-1+TDparW)
+            tau_max = TDparW*np.log(TDparW)/(-1+TDparW)
+        elif(TDkappa == 2):
+            tau_min = (TDparW-1)/(TDparW*np.log(TDparW))
+            tau_max = (TDparW-1)/(np.log(TDparW))
+        else:
+            tau_min = (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) / ((TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
+            tau_max = TDparW * (TDkappa - 2.0) * (-1.0 + pow(TDparW, 1.0 - TDkappa)) /( (TDkappa - 1.0) * (-1.0 + pow(TDparW, 2.0 - TDkappa)))
 
         bounded_pareto = bounded_pareto_gen(a=tau_min, b=tau_max, name='bpareto')
         TD = bounded_pareto.rvs(alpha=TDkappa, width = TDparW,  size=K)
