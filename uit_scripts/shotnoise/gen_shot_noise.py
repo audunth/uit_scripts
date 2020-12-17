@@ -108,7 +108,7 @@ def create_rate(version, gamma, K, k_length=True, tw=False):
         # and https://sdepy.readthedocs.io/en/v1.1.1/intro.html#id2
         # This uses a Wiener process as dW(t)
         @sdepy.integrate
-        def rate_process(t, x, mu=2., k=.1, sigma=1.):
+        def rate_process(t, x, mu=1., k=.1, sigma=1.):
             return {'dt': k * (mu - x), 'dw': sigma}
         # k: speed of reversion = .1
         # mu: long-term average position = 1.
@@ -118,7 +118,8 @@ def create_rate(version, gamma, K, k_length=True, tw=False):
         t = np.linspace(0., T, size)
         rate = rate_process(x0=1.)(timeline)  # pylint: disable=E1102,E1123,E1120
         rate = rate.reshape((-1,))
-        rate *= gamma / rate.mean()
+        rate -= rate.min()
+        rate = rate * gamma * .995 / rate.mean() + .005
         rate = rate if not tw else 1 / rate
     # Use n random numbers as the rate, drawn from a gamma distribution
     elif version == 'n-random':
@@ -126,9 +127,9 @@ def create_rate(version, gamma, K, k_length=True, tw=False):
         size = K if k_length else int(1e5)
         # Return rate as a waiting time if True, else as a varying gamma.
         scale = 1 / gamma if tw else gamma
-        rate = prob.gamma(shape=1., scale=scale, size=size)
-        # rate = prob.exponential(scale=scale, size=size)
-        t = np.linspace(0, np.sum(rate), size)
+        # rate = prob.gamma(shape=1., scale=scale, size=size)
+        rate = prob.exponential(scale=scale, size=size)
+        t = np.linspace(0, np.sum(1 / rate), size)
     if any(rate < 0):
         print('Warning: Rate process includes negatives. Computing abs(rate).')
         rate = abs(rate)
@@ -202,14 +203,14 @@ def create_ta(rate, gamma, K):
     T = K / gamma
     assert version in ['int', '2-rd-tw', 'tick']
     if version == 'int':
-        rate, t = create_rate(Vrate, gamma, K, k_length=False)
+        rate, _ = create_rate(Vrate, gamma, K, k_length=False)
+        t = np.linspace(0, np.sum(rate), int(1e5))
         int_thresholds = np.linspace(0, np.sum(rate), K)
         c_sum = np.cumsum(rate)
-        ta = find_nearest(c_sum, int_thresholds)
-        ta = t[ta]
+        ta_i = find_nearest(c_sum, int_thresholds)
+        ta = t[ta_i]
         # Normalize arrival times to within T_max
         ta = ta * T / np.ceil(np.max(ta))
-        # amp, _, _ = gsn.amp_ta(gamma, K)
         return ta, K, T
     if version == '2-rd-tw':
         k_length = True
@@ -218,8 +219,8 @@ def create_ta(rate, gamma, K):
             idx = np.round(np.linspace(
                 0, len(tw) - 1, K)).astype(int)
             tw = tw[idx]
-        # amp, ta, self.T = gsn.amp_ta(
-        #     1 / tw, self.K, TWdist='gam', Adist=self.amp, TWkappa=.1)
+        # amp, ta, T = gsn.amp_ta(
+        #     1 / tw, K, TWdist='gam', Adist=self.amp, TWkappa=.1)
         return tw, K, T
     if version == 'tick':
         rate, t = create_rate(Vrate, gamma, K, k_length=False)
