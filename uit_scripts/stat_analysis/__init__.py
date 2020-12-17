@@ -1,3 +1,5 @@
+from .correlation_function import corr_fun
+
 from .deconv_methods import RL_gauss_deconvolve
 from .deconv_methods import find_amp_ta_savgol
 from .deconv_methods import find_amp_ta_old
