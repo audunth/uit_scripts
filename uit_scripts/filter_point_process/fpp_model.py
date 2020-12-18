@@ -34,8 +34,8 @@ class FPPModel:
         self.dt = dt
         self._times: np.ndarray = np.arange(0, total_duration, dt)
         self._forcing_generator: frc.ForcingGenerator = frc.StandardForcingGenerator()
-        self._pulse_shape: ps.ShortPulseShapeGenerator = (
-            ps.ExponentialShortPulseShapeGenerator()
+        self._pulse_generator: ps.ShortPulseGenerator = (
+            ps.ExponentialShortPulseGenerator()
         )
         self._last_used_forcing: frc.Forcing = None
 
@@ -98,26 +98,36 @@ class FPPModel:
             raise NotImplementedError
 
     def set_pulse_shape(
-        self, pulse_shape: Union[ps.PulseShapeGenerator, ps.ShortPulseShapeGenerator]
+        self, pulse_generator: Union[ps.PulseGenerator, ps.ShortPulseGenerator]
     ):
         """
         Parameters
         ----------
-        pulse_shape Instance of PulseShape, get_pulse_shape will be called for each pulse when making a realization.
+        pulse_shape Instance of PulseShape, get_pulse will be called for each pulse when making a realization.
         """
-        self._pulse_shape = pulse_shape
+        self._pulse_generator = pulse_generator
 
     def _add_pulse_to_signal(
         self, signal: np.ndarray, pulse_parameters: frc.PulseParameters
     ):
-        if isinstance(self._pulse_shape, ps.PulseShapeGenerator):
-            signal += pulse_parameters.amplitude * self._pulse_shape.get_pulse_shape(
-                self._times - pulse_parameters.arrival_time, pulse_parameters.duration
+        """
+        Adds a pulse to the provided signal array. Uses self._pulse_generator to generate the pulse shape, this can
+        either be a ps.PulseGenerator or a ps.ShortPulseGenerator.
+        Parameters
+        ----------
+        signal Signal array under construction
+        pulse_parameters Parameters of the current pulse
+
+        """
+        if isinstance(self._pulse_generator, ps.PulseGenerator):
+            signal += pulse_parameters.amplitude * self._pulse_generator.get_pulse(
+                self._times - pulse_parameters.arrival_time,
+                pulse_parameters.duration,
             )
             return
 
-        if isinstance(self._pulse_shape, ps.ShortPulseShapeGenerator):
-            pulse = pulse_parameters.amplitude * self._pulse_shape.get_pulse_shape(
+        if isinstance(self._pulse_generator, ps.ShortPulseGenerator):
+            pulse = pulse_parameters.amplitude * self._pulse_generator.get_pulse(
                 self.dt, pulse_parameters.duration
             )
             center_index = int(pulse_parameters.arrival_time / self.dt)

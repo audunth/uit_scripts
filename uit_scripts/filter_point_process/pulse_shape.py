@@ -5,7 +5,7 @@ from typing import Callable
 import warnings
 
 
-class PulseShapeGenerator(ABC):
+class PulseGenerator(ABC):
     """Abstract pulse shape, implementations should return a pulse shape vector
     given an array of time stamps with (possibly) different durations.
 
@@ -15,7 +15,7 @@ class PulseShapeGenerator(ABC):
     """
 
     @abstractmethod
-    def get_pulse_shape(self, times: np.ndarray, duration: float) -> np.ndarray:
+    def get_pulse(self, times: np.ndarray, duration: float) -> np.ndarray:
         """
         Abstract method, implementations should return np.ndarray with pulse shape with the same length as times.
         Parameters
@@ -31,7 +31,7 @@ class PulseShapeGenerator(ABC):
         raise NotImplementedError
 
 
-class StandardPulseShapeGenerator(PulseShapeGenerator):
+class StandardPulseGenerator(PulseGenerator):
     """Generates all pulse shapes previously supported."""
 
     __SHAPE_NAMES__ = {"1-exp", "lorentz", "2-exp"}
@@ -47,12 +47,12 @@ class StandardPulseShapeGenerator(PulseShapeGenerator):
                 - "lam" parameter for the asymmetry parameter
         """
         assert (
-            shape_name in StandardPulseShapeGenerator.__SHAPE_NAMES__
+            shape_name in StandardPulseGenerator.__SHAPE_NAMES__
         ), "Invalid shape_name"
         self._shape_name: str = shape_name
         self._kwargs = kwargs
 
-    def get_pulse_shape(
+    def get_pulse(
         self, times: np.ndarray, duration: float, tolerance: float = 1e-5
     ) -> np.ndarray:
 
@@ -67,11 +67,11 @@ class StandardPulseShapeGenerator(PulseShapeGenerator):
         shape_name: str,
     ) -> Callable[[np.ndarray, float, dict], np.ndarray]:
         if shape_name == "1-exp":
-            return StandardPulseShapeGenerator._get_exponential_shape
+            return StandardPulseGenerator._get_exponential_shape
         if shape_name == "2-exp":
-            return StandardPulseShapeGenerator._get_double_exponential_shape
+            return StandardPulseGenerator._get_double_exponential_shape
         if shape_name == "lorentz":
-            return StandardPulseShapeGenerator._get_lorentz_shape
+            return StandardPulseGenerator._get_lorentz_shape
 
     @staticmethod
     def _get_exponential_shape(
@@ -97,7 +97,7 @@ class StandardPulseShapeGenerator(PulseShapeGenerator):
         return kern
 
 
-class ShortPulseShapeGenerator(ABC):
+class ShortPulseGenerator(ABC):
     """Abstract pulse shape, implementations should return a pulse shape vector
     with (possibly) different durations.
 
@@ -112,7 +112,7 @@ class ShortPulseShapeGenerator(ABC):
         self.tolerance = tolerance
 
     @abstractmethod
-    def get_pulse_shape(self, dt: float, duration: float) -> np.ndarray:
+    def get_pulse(self, dt: float, duration: float) -> np.ndarray:
         """
         Abstract method, implementations should return np.ndarray with pulse shape. The returned array should contain
         the values of the shape for the times [-T, T] with sampling dt, where T is such that the value of the pulse
@@ -130,7 +130,7 @@ class ShortPulseShapeGenerator(ABC):
         raise NotImplementedError
 
 
-class ExponentialShortPulseShapeGenerator(ShortPulseShapeGenerator):
+class ExponentialShortPulseGenerator(ShortPulseGenerator):
     def __init__(self, tolerance: float = 1e-50, max_cutoff: float = 1e50):
         """Exponential pulse generator, the length of the returned array is
         dynamically set to be the shortest to reach a pulse value under the
@@ -143,10 +143,10 @@ class ExponentialShortPulseShapeGenerator(ShortPulseShapeGenerator):
         tolerance Maximum error when cutting the pulse.
         max_cutoff
         """
-        super(ExponentialShortPulseShapeGenerator, self).__init__(tolerance)
+        super(ExponentialShortPulseGenerator, self).__init__(tolerance)
         self._max_cutoff = max_cutoff
 
-    def get_pulse_shape(self, dt: float, duration: float):
+    def get_pulse(self, dt: float, duration: float):
         cutoff = -duration * np.log(self.tolerance)
         cutoff = min(cutoff, self._max_cutoff)
 
@@ -156,9 +156,9 @@ class ExponentialShortPulseShapeGenerator(ShortPulseShapeGenerator):
         return kern
 
 
-class BoxShortPulseShapeGenerator(ShortPulseShapeGenerator):
+class BoxShortPulseGenerator(ShortPulseGenerator):
     def __init__(self, tolerance: float = 1e-50):
-        super(BoxShortPulseShapeGenerator, self).__init__(tolerance)
+        super(BoxShortPulseGenerator, self).__init__(tolerance)
 
-    def get_pulse_shape(self, dt: float, duration: float):
+    def get_pulse(self, dt: float, duration: float):
         return np.ones(int(duration / dt))
