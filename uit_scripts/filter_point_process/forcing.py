@@ -5,9 +5,8 @@ import numpy as np
 
 
 class PulseParameters:
-    """
-    Container class with the parameters (arrival time, amplitude and duration) for a single pulse.
-    """
+    """Container class with the parameters (arrival time, amplitude and
+    duration) for a single pulse."""
 
     def __init__(self, arrival_time: float, amplitude: float, duration: float):
         self.arrival_time = arrival_time
@@ -16,9 +15,8 @@ class PulseParameters:
 
 
 class Forcing:
-    """
-    Container class with the signal forcing containing arrival times, amplitudes and durations for all the pulses.
-    """
+    """Container class with the signal forcing containing arrival times,
+    amplitudes and durations for all the pulses."""
 
     def __init__(
         self,
@@ -47,9 +45,11 @@ class Forcing:
 
 
 class ForcingGenerator(ABC):
-    """
-    Abstract class used by FPPModels to generate forcing. Implementations of this class should have a get_forcing
-    method, returning a forcing with arrival times, amplitudes and durations for all pulses.
+    """Abstract class used by FPPModels to generate forcing.
+
+    Implementations of this class should have a get_forcing method,
+    returning a forcing with arrival times, amplitudes and durations for
+    all pulses.
     """
 
     @abstractmethod
@@ -71,9 +71,10 @@ class ForcingGenerator(ABC):
 
 
 class StandardForcingGenerator(ForcingGenerator):
-    """
-    Generates a standard forcing, with uniformly distributed arrival times. The resulting process is therefore a Poisson
-    process. Amplitude and duration distributions can be customized.
+    """Generates a standard forcing, with uniformly distributed arrival times.
+
+    The resulting process is therefore a Poisson process. Amplitude and
+    duration distributions can be customized.
     """
 
     def __init__(self):

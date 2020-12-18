@@ -13,11 +13,21 @@ times, signal = model.make_realization()
 plt.plot(times, signal)
 plt.show()
 
+# Double exponential shape
+
+model = fpp.FPPModel(gamma=0.1, total_duration=100, dt=0.01)
+model.set_pulse_shape(ps.StandardPulseShapeGenerator("2-exp", lam=0.35))
+times, signal = model.make_realization()
+
+plt.plot(times, signal)
+plt.show()
+
+
 # Say you want to customise your model a bit: use constant amplitude distribution, and box pulse shapes
 
 model = fpp.FPPModel(gamma=0.1, total_duration=100, dt=0.01)
 model.set_amplitude_distribution("deg")
-model.set_pulse_shape(ps.BoxShortPulseShape())
+model.set_pulse_shape(ps.BoxShortPulseShapeGenerator())
 
 times, signal = model.make_realization()
 

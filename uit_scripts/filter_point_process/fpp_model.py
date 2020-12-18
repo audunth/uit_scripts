@@ -21,11 +21,11 @@ def _get_common_distribution(
 
 
 class FPPModel:
-    """
-    FPPModel is a container for all model parameters and is responsible of generating a realization of the process
-    through make_realization.
+    """FPPModel is a container for all model parameters and is responsible of
+    generating a realization of the process through make_realization.
 
-    Uses a ForcingGenerator to generate the forcing, this is by default a StandardForcingGenerator.
+    Uses a ForcingGenerator to generate the forcing, this is by default
+    a StandardForcingGenerator.
     """
 
     def __init__(self, gamma: float, total_duration: float, dt: float):
@@ -34,7 +34,9 @@ class FPPModel:
         self.dt = dt
         self._times: np.ndarray = np.arange(0, total_duration, dt)
         self._forcing_generator: frc.ForcingGenerator = frc.StandardForcingGenerator()
-        self._pulse_shape: ps.ShortPulseShape = ps.ExponentialShortPulseShape()
+        self._pulse_shape: ps.ShortPulseShapeGenerator = (
+            ps.ExponentialShortPulseShapeGenerator()
+        )
         self._last_used_forcing: frc.Forcing = None
 
     def make_realization(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -62,8 +64,8 @@ class FPPModel:
     def set_amplitude_distribution(
         self, amplitude_distribution: str, average_amplitude: float = 1.0
     ):
-        """
-        Sets the amplitude distribution to be used by the forcing.
+        """Sets the amplitude distribution to be used by the forcing.
+
         Args:
             amplitude_distribution: str
                 'exp': exponential with scale parameter average_amplitude
@@ -80,8 +82,8 @@ class FPPModel:
     def set_duration_distribution(
         self, duration_distribution: str, average_duration: float = 1.0
     ):
-        """
-        Sets the amplitude distribution to be used by the forcing.
+        """Sets the amplitude distribution to be used by the forcing.
+
         Args:
             duration_distribution: str
                 'exp': exponential with scale parameter average_duration
@@ -95,7 +97,9 @@ class FPPModel:
         else:
             raise NotImplementedError
 
-    def set_pulse_shape(self, pulse_shape: Union[ps.PulseShape, ps.ShortPulseShape]):
+    def set_pulse_shape(
+        self, pulse_shape: Union[ps.PulseShapeGenerator, ps.ShortPulseShapeGenerator]
+    ):
         """
         Parameters
         ----------
@@ -106,13 +110,25 @@ class FPPModel:
     def _add_pulse_to_signal(
         self, signal: np.ndarray, pulse_parameters: frc.PulseParameters
     ):
-        pulse = pulse_parameters.amplitude * self._pulse_shape.get_pulse_shape(
-            self.dt, pulse_parameters.duration
+        if isinstance(self._pulse_shape, ps.PulseShapeGenerator):
+            signal += pulse_parameters.amplitude * self._pulse_shape.get_pulse_shape(
+                self._times - pulse_parameters.arrival_time, pulse_parameters.duration
+            )
+            return
+
+        if isinstance(self._pulse_shape, ps.ShortPulseShapeGenerator):
+            pulse = pulse_parameters.amplitude * self._pulse_shape.get_pulse_shape(
+                self.dt, pulse_parameters.duration
+            )
+            center_index = int(pulse_parameters.arrival_time / self.dt)
+            half_length = int(len(pulse) / 2)
+            from_index = max(center_index - half_length, 0)
+            to_index = min(center_index + half_length, len(signal))
+            pulse_from_index = from_index - (center_index - half_length)
+            pulse_to_index = to_index - center_index + half_length
+            signal[from_index:to_index] += pulse[pulse_from_index:pulse_to_index]
+            return
+
+        raise NotImplementedError(
+            "Pulse shape has to inherit from PulseShape or ShortPulseShape"
         )
-        center_index = int(pulse_parameters.arrival_time / self.dt)
-        half_length = int(len(pulse) / 2)
-        from_index = max(center_index - half_length, 0)
-        to_index = min(center_index + half_length, len(signal))
-        pulse_from_index = from_index - (center_index - half_length)
-        pulse_to_index = to_index - center_index + half_length
-        signal[from_index:to_index] += pulse[pulse_from_index:pulse_to_index]
