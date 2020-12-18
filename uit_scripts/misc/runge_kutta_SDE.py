@@ -77,7 +77,7 @@ def SDE_GB(dt, N, x0=0.,mu=1., sigma=1., seed=None):
     return X
 
 @jit(nopython=True)
-def SDE_SLE(dt, N, x0=0., gamma=1., log=True, seed=None):
+def SDE_SLE(dt, N, x0=1., gamma=1., log=False, strong=True, seed=None):
     """
     Fast calculation of the stochastic logistic equation with parameter gamma:
         dx_t = x_t(1-x_t/(1.+gamma)) dt + sqrt(2/(1+gamma)) x_t dW_t
@@ -85,6 +85,7 @@ def SDE_SLE(dt, N, x0=0., gamma=1., log=True, seed=None):
     dt: time step
     N: number of iterations
     x0: initial state
+    strong: If True, estimate the logarithm using the strong order 1.5, weak order 3 algorithm of A. Rossler DOI:10.1137/09076636X
     log: If True, estimate log(x_t) and then take the exponential.
     seed: seed for random state
     """
@@ -94,8 +95,24 @@ def SDE_SLE(dt, N, x0=0., gamma=1., log=True, seed=None):
     dW = np.random.normal(0,sqdt,N-1)
     sigma = np.sqrt(2/(1.+gamma))
     X = np.zeros(N)
+    
+    if strong:
+        a = lambda x: (gamma-np.exp(x))/(1.+gamma)
+        
+        # Noise terms
+        zeta = np.random.normal(0,sqdt/np.sqrt(3.),N-1)
+        N1 = 0.75*sigma*(dW+zeta)
+        N2 = 0.5*sigma*(dW-zeta)
+        
+        # Iteration
+        X[0] = np.log(x0)
+        for i in range(N-1):
+            H2 = X[i]+a(X[i])*dt
+            H3 = 0.75*X[i] + 0.25*(H2+a(H2)*dt) + N1[i]
+            X[i+1] = X[i]/3. + (2./3.)*(H3+a(H3)*dt) + N2[i]
+        return np.exp(X)  
 
-    if log:
+    elif ((not strong) and log):
         X[0] = np.log(x0)
         for i in range(N-1):
             X[i+1] = X[i] + (gamma-np.exp(X[i]))*dt/(1.+gamma) + sigma*dW[i]
