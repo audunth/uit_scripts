@@ -136,3 +136,7 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# IntelliJ’s project specific settings files
+.idea/
+
