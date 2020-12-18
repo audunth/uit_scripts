@@ -112,7 +112,7 @@ class ShortPulseGenerator(ABC):
         self.tolerance = tolerance
 
     @abstractmethod
-    def get_pulse(self, dt: float, duration: float) -> np.ndarray:
+    def get_pulse(self, times: np.ndarray, duration: float) -> np.ndarray:
         """
         Abstract method, implementations should return np.ndarray with pulse shape. The returned array should contain
         the values of the shape for the times [-T, T] with sampling dt, where T is such that the value of the pulse
@@ -126,6 +126,21 @@ class ShortPulseGenerator(ABC):
         -------
         np.ndarray with the pulse shape,
 
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_cutoff(self, duration: float) -> float:
+        """
+        Abstract method, implementations should return the cutoff above (and below) which the pulse becomes negligible,
+        i.e. return T such that abs(p(T/duration)) < self.tolerance and abs(p(-T/duration)) < self.tolerance
+        Parameters
+        ----------
+        duration duration of the pulse
+
+        Returns
+        -------
+        Cutoff to cut the pulse
         """
         raise NotImplementedError
 
@@ -146,19 +161,24 @@ class ExponentialShortPulseGenerator(ShortPulseGenerator):
         super(ExponentialShortPulseGenerator, self).__init__(tolerance)
         self._max_cutoff = max_cutoff
 
-    def get_pulse(self, dt: float, duration: float):
-        cutoff = -duration * np.log(self.tolerance)
-        cutoff = min(cutoff, self._max_cutoff)
-
-        tkern = np.arange(-cutoff, cutoff + dt, dt)
-        kern = np.zeros(len(tkern))
-        kern[tkern >= 0] = np.exp(-tkern[tkern >= 0] / duration)
+    def get_pulse(self, times: np.ndarray, duration: float):
+        kern = np.zeros(len(times))
+        kern[times >= 0] = np.exp(-times[times >= 0] / duration)
         return kern
+
+    def get_cutoff(self, duration: float):
+        cutoff = -duration * np.log(self.tolerance)
+        return min(cutoff, self._max_cutoff)
 
 
 class BoxShortPulseGenerator(ShortPulseGenerator):
     def __init__(self, tolerance: float = 1e-50):
         super(BoxShortPulseGenerator, self).__init__(tolerance)
 
-    def get_pulse(self, dt: float, duration: float):
-        return np.ones(int(duration / dt))
+    def get_pulse(self, times: np.ndarray, duration: float):
+        kern = np.zeros(len(times))
+        kern[abs(times) < duration] = 1
+        return kern
+
+    def get_cutoff(self, duration: float) -> float:
+        return duration
