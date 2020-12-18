@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+from typing import Callable
 import warnings
 
 
@@ -62,7 +63,9 @@ class StandardPulseShapeGenerator(PulseShapeGenerator):
         return kern
 
     @staticmethod
-    def _get_generator(shape_name: str):
+    def _get_generator(
+        shape_name: str,
+    ) -> Callable[[np.ndarray, float, dict], np.ndarray]:
         if shape_name == "1-exp":
             return StandardPulseShapeGenerator._get_exponential_shape
         if shape_name == "2-exp":
@@ -71,29 +74,26 @@ class StandardPulseShapeGenerator(PulseShapeGenerator):
             return StandardPulseShapeGenerator._get_lorentz_shape
 
     @staticmethod
-    def _get_exponential_shape(times: np.ndarray, duration: float, kwargs):
+    def _get_exponential_shape(
+        times: np.ndarray, duration: float, kwargs
+    ) -> np.ndarray:
         kern = np.zeros(len(times))
         kern[times >= 0] = np.exp(-times[times >= 0] / duration)
         return kern
 
     @staticmethod
-    def _get_lorentz_shape(times: np.ndarray, duration: float, kwargs):
+    def _get_lorentz_shape(times: np.ndarray, duration: float, kwargs) -> np.ndarray:
         return (np.pi * (1 + (times / duration) ** 2)) ** (-1)
 
     @staticmethod
-    def _get_double_exponential_shape(times: np.ndarray, duration: float, kwargs):
+    def _get_double_exponential_shape(
+        times: np.ndarray, duration: float, kwargs
+    ) -> np.ndarray:
         lam = kwargs["lam"]
         assert (lam > 0.0) & (lam < 1.0)
         kern = np.zeros(len(times))
         kern[times < 0] = np.exp(times[times < 0] / lam / duration)
         kern[times >= 0] = np.exp(-times[times >= 0] / (1 - lam) / duration)
-        return kern
-
-
-class ExponentialPulseShapeGenerator(PulseShapeGenerator):
-    def get_pulse_shape(self, times: np.ndarray, duration: float) -> np.ndarray:
-        kern = np.zeros(times.size)
-        kern[times >= 0] = np.exp(-times[times >= 0])
         return kern
 
 
