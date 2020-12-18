@@ -128,16 +128,17 @@ class FPPModel:
 
         if isinstance(self._pulse_generator, ps.ShortPulseGenerator):
             cutoff = self._pulse_generator.get_cutoff(pulse_parameters.duration)
-            pulse_indexes = np.logical_and(
-                self._times > pulse_parameters.arrival_time - cutoff,
-                self._times < pulse_parameters.arrival_time + cutoff,
+            from_index = max(int((pulse_parameters.arrival_time - cutoff) / self.dt), 0)
+            to_index = min(
+                int((pulse_parameters.arrival_time + cutoff) / self.dt),
+                len(self._times),
             )
-            pulse_times = self._times[pulse_indexes] - pulse_parameters.arrival_time
 
             pulse = pulse_parameters.amplitude * self._pulse_generator.get_pulse(
-                pulse_times, pulse_parameters.duration
+                self._times[from_index:to_index] - pulse_parameters.arrival_time,
+                pulse_parameters.duration,
             )
-            signal[pulse_indexes] += pulse
+            signal[from_index:to_index] += pulse
             return
 
         raise NotImplementedError(
