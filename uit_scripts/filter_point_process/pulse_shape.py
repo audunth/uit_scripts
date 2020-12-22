@@ -161,23 +161,48 @@ class ExponentialShortPulseGenerator(ShortPulseGenerator):
         super(ExponentialShortPulseGenerator, self).__init__(tolerance)
         self._max_cutoff = max_cutoff
 
-    def get_pulse(self, times: np.ndarray, duration: float):
+    def get_pulse(self, times: np.ndarray, duration: float) -> np.ndarray:
         kern = np.zeros(len(times))
         kern[times >= 0] = np.exp(-times[times >= 0] / duration)
         return kern
 
-    def get_cutoff(self, duration: float):
+    def get_cutoff(self, duration: float) -> float:
         cutoff = -duration * np.log(self.tolerance)
         return min(cutoff, self._max_cutoff)
 
 
 class BoxShortPulseGenerator(ShortPulseGenerator):
+    """
+    Box shape p(t, tau):
+        p(t, tau) = 1, for |t| < tau / 2
+        p(t, tau) = 0, otherwise
+    """
+
     def __init__(self, tolerance: float = 1e-50):
         super(BoxShortPulseGenerator, self).__init__(tolerance)
 
-    def get_pulse(self, times: np.ndarray, duration: float):
+    def get_pulse(self, times: np.ndarray, duration: float) -> np.ndarray:
         kern = np.zeros(len(times))
-        kern[abs(times) < duration] = 1
+        kern[abs(times) < duration / 2] = 1
+        return kern
+
+    def get_cutoff(self, duration: float) -> float:
+        return duration
+
+
+class TriangularShortPulseGenerator(ShortPulseGenerator):
+    """
+    Triangular shape p(t, tau):
+        p(t, tau) = 1 - |t|/tau, for |t| < tau
+        p(t, tau) = 0, otherwise
+    """
+
+    def __init__(self, tolerance: float = 1e-50):
+        super(TriangularShortPulseGenerator, self).__init__(tolerance)
+
+    def get_pulse(self, times: np.ndarray, duration: float) -> np.ndarray:
+        kern = np.zeros(len(times))
+        kern[abs(times) < duration] = 1 - abs(times[abs(times) < duration]) / duration
         return kern
 
     def get_cutoff(self, duration: float) -> float:
