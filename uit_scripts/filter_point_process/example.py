@@ -39,7 +39,7 @@ plt.show()
 
 model = fpp.FPPModel(gamma=0.1, total_duration=100, dt=0.01)
 my_forcing_gen = frc.StandardForcingGenerator()
-my_forcing_gen.set_duration_distribution(
+my_forcing_gen.set_amplitude_distribution(
     lambda k: np.random.randint(low=1, high=3, size=k)
 )
 
@@ -62,9 +62,9 @@ class MyFancyForcingGenerator(frc.ForcingGenerator):
     def get_forcing(self, times: np.ndarray, gamma: float) -> frc.Forcing:
         total_pulses = int(max(times) * gamma)
         arrival_time_indx = np.random.randint(0, len(times), size=total_pulses)
-        amplitudes = np.random.exponential(scale=1.0, size=total_pulses)
-        durations = amplitudes + np.random.normal(
-            loc=0, scale=0.5, size=len(amplitudes)
+        amplitudes = np.random.default_rng().exponential(scale=1.0, size=total_pulses)
+        durations = amplitudes + np.abs(
+            0, np.random.normal(loc=0, scale=0.5, size=len(amplitudes))
         )
         return frc.Forcing(
             total_pulses, times[arrival_time_indx], amplitudes, durations

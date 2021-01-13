@@ -13,7 +13,7 @@ def _get_common_distribution(
     distribution_name: str, average: float
 ) -> Callable[[int], np.ndarray]:
     if distribution_name == "exp":
-        return lambda k: np.random.Generator.exponential(scale=average, size=k)
+        return lambda k: np.random.default_rng().exponential(scale=average, size=k)
     elif distribution_name == "deg":
         return lambda k: average * np.ones(k)
     else:

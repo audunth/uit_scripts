@@ -104,7 +104,7 @@ class StandardForcingGenerator(ForcingGenerator):
     def _get_amplitudes(self, total_pulses) -> np.ndarray:
         if self._amplitude_distribution is not None:
             return self._amplitude_distribution(total_pulses)
-        return np.random.exponential(scale=1.0, size=total_pulses)
+        return np.random.default_rng().exponential(scale=1.0, size=total_pulses)
 
     def _get_durations(self, total_pulses) -> np.ndarray:
         if self._duration_distribution is not None:
