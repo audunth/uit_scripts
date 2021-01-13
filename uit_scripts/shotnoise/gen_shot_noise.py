@@ -842,6 +842,10 @@ def make_signal(
 
         S += initial_pulse
 
+        final_pulse = gamma*kern(tkern=T-T[-1], kerntype=kerntype, lam=lam, 
+                              dkern=dkern, tol=100, shape=kernshape, td=1)
+        S += final_pulse
+    
     res = (T,S)
     if dynamic:
         res += (S+X[0],)
