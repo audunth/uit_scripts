@@ -82,16 +82,25 @@ def create_rate(version, gamma, K, k_length=True, tw=False):
         'n-random' creates K or int(1e5) random floating pt. numbers drawn
             from a Gamma distribution (can be changed manually), where the
             scale is either gamma or 1 / gamma.
-    Args:
-        version (str): the version used to generate the rate array (see above)
+    
+    Parameters
+    ----------
+    version : str
+        The version used to generate the rate array (see above)
         gamma (float): intermittency parameter
-        K (int): number of arrivals
-        k_length (bool, optional): If True, the rate array has length K,
-                                   else, length int(1e5). Defaults to True.
-        tw (bool, optional): If True, return the waiting time (i.e. 1 / rate)
-                             instead of the rate process. Defaults to False.
-    Returns:
-        rate (np.ndarray): the rate process with shape (K,) or (int(1e5),)
+    K : int
+        Number of arrivals
+    k_length : bool, optional
+        If True, the rate array has length K,
+        else, length int(1e5). Defaults to True.
+    tw : bool, optional
+        If True, return the waiting time (i.e. 1 / rate)
+        instead of the rate process. Defaults to False.
+    
+    Returns
+    -------
+    np.ndarray
+        The rate process with shape (K,) or (int(1e5),)
         t (np.ndarray): the time axis for the rate process (same shape)
     """
     import numpy as np
@@ -137,14 +146,21 @@ def create_rate(version, gamma, K, k_length=True, tw=False):
 def find_nearest(array, value):
     """Find the indices of 'array' that are closest to the values in 'values'.
     Shape of array: (n,); shape of values: (k,). n>=k.
-    Args:
-        array (list or np.ndarray): array that is searched
-        value (iterable): elements must be numerical and should
-                          reflect values in 'array'
-    Returns:
-        idx (list): the masking of 'array' that will return an array with
-                    length of 'values' and elements closest to the elements
-                    of 'values'.
+    
+    Parameters
+    ----------
+    array : list or np.ndarray
+        Array that is searched
+    value : iterable
+        Elements must be numerical and should
+        reflect values in 'array'
+    
+    Returns
+    -------
+    list
+        The indices/masking of 'array' that will return an array with
+        length of 'values' and elements closest to the elements
+        of 'values'.
     """
     import numpy as np
 
@@ -178,15 +194,24 @@ def create_ta(rate, gamma, K):
             of the rate process the rate give the probability of an
             event / arrival) and the final number of arrivals will
             vary, but stay close to K (K must therefore be reset).
-    Args:
-        rate (np.ndarray): the rate process [shape=(K or int(1e5),)]
-        gamma (float): intermittency parameter
-        K (int): number of arrivals
-    Returns:
-        ta (np.ndarray): arrival times (or waiting time scales), shape
-                         (K or int(1e5),).
-        K (int): if 'tick', the number of arrivals is reset and returned,
-                 else returns None.
+    
+    Parameters
+    ----------
+    rate : np.ndarray
+        The rate process [shape=(K or int(1e5),)]
+    gamma : float
+        Intermittency parameter
+    K : int
+        Number of arrivals
+    
+    Returns
+    -------
+    ta : np.ndarray
+        Arrival times (or waiting time scales), shape
+        (K or int(1e5),).
+    K : int
+        If 'tick', the number of arrivals is reset and returned,
+        else returns None.
     """
     import numpy as np
     import tick.base as tb
