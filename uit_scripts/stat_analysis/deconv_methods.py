@@ -71,7 +71,7 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
     index_array = np.arange(sigtmp.size)
     count = 0
     
-    for i in tqdm(range(1, iterlist[-1]+1)):
+    for i in tqdm(range(1, iterlist[-1]+1), position=0, leave=True):
         # If an element in the previous iteration is very close to zero,
         # the same element in the next iteration should be as well.
         # This is handeled numerically by setting all elements <= cutoff to 0
