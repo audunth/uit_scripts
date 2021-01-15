@@ -10,3 +10,8 @@ git clone https://github.com/audunth/uit_scripts.git
 cd uit_scripts
 pip install -e .
 ```
+
+## Migration to uit-cosmo
+Any new updates should be made to uit-cosmo/uit-scripts. Contact Audun for access.
+
+At some point in the future, uit-cosmo will supersede this repository.
