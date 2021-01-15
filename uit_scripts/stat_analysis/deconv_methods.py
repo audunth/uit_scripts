@@ -52,10 +52,6 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
 
     sigtmp = np.copy(sig)
     kerntmp = np.copy(kern)
-    # if shift:
-    #     alpha = np.sum(kern)/np.sum(sig)
-    #     sigtmp += shift
-    #     kerntmp += shift*alpha
 
     if type(iterlist) is int:
         iterlist = [iterlist, ]
@@ -185,7 +181,6 @@ def find_amp_ta_savgol(D, T, window_length=3):
         amp[-1] = np.sum(D[interpeak[i]:interpeak[i+1]])
     else:
         amp[-1] = np.sum(D[interpeak[i]:])
-    # print('max amp is', max(amp))
     # Often, zero-mass peaks are found. Remove these.
     ta = T[peak][amp>0]
     amp = amp[amp>0]
