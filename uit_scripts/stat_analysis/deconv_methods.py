@@ -9,9 +9,8 @@
 # Then, use find_amp_ta to calculate the peaks. The default values work OK.
 # Noise is handeled by increasing window_length or order in find_amp_ta.
 
-
 def RL_gauss_deconvolve(sig, kern, iterlist,
-                        init=None, shift = None, cutoff=1e-10):
+                        init=None, cutoff=1e-10, sf=1):
     """
     Use: RL_gauss_deconvolve(sig,kern, iterlist, init=None, cutoff=1e-10)
     Performs the Richardson-Lucy deconvolution for normally distributed noise.
@@ -25,15 +24,24 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
               If this is a list, the deconvolution result           list of int
               is returned for each element in iterlist, see below.
         init: initial array guess. Leave blank for all zeros. ..... 1D np array
-        shift: shift parameter for removing negative values. ...... float
         cutoff: for avoiding divide by zero errors. ............... float
+        sf: scale factor which is multiplied with b condition...... float > 0, default = 1
 
     Output:
         res: result array. NxM, where N=len(sig) and M=len(iterlist)   np array
         err: mean absolute difference between iterations .......... 1D np array
+    
+    WARNING:
+    For estimating the pulse shape, you need to ensure you have an odd number of data points when generating synthetic data.
+    Do a check like the following before putting S into the sig argument.
+    if (len(S) % 2) == 0:
+        S = S[:-1]
+        T = T[:-1]
     """
     import numpy as np
+    from tqdm import tqdm
     from scipy.signal import fftconvolve
+
 
     if init is None:
         update0 = np.ones(sig.size)
@@ -44,10 +52,10 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
 
     sigtmp = np.copy(sig)
     kerntmp = np.copy(kern)
-    if shift:
-        alpha = np.sum(kern)/np.sum(sig)
-        sigtmp += shift
-        kerntmp += shift*alpha
+    # if shift:
+    #     alpha = np.sum(kern)/np.sum(sig)
+    #     sigtmp += shift
+    #     kerntmp += shift*alpha
 
     if type(iterlist) is int:
         iterlist = [iterlist, ]
@@ -62,7 +70,8 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
 
     index_array = np.arange(sigtmp.size)
     count = 0
-    for i in range(1, iterlist[-1]+1):
+    
+    for i in tqdm(range(1, iterlist[-1]+1)):
         # If an element in the previous iteration is very close to zero,
         # the same element in the next iteration should be as well.
         # This is handeled numerically by setting all elements <= cutoff to 0
@@ -70,10 +79,18 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
 
         #tmp = np.abs(fftconvolve(update0, kernconv, 'same'))
         tmp = fftconvolve(update0, kernconv, 'same')
-        good = tmp > cutoff
 
-        #update1 = update0 * sigconv / tmp
-        update1[good] = update0[good] * sigconv[good] / tmp[good]
+        # To ensure we have non-negative iterations we apply a condition which is dependent on sigconv
+        # If signconv is negative then b = cutoff - sf*np.amin(sigconv). Cutoff avoids division by 0.
+        # If sigconv is positive, let b = cutoff to ensure non-zero division.
+        if np.amin(sigconv) < 0:
+            b_min = np.amin(sigconv)
+            b = cutoff - sf*b_min
+        else:
+            b = cutoff
+
+        update1 = (update0 * (sigconv + b)) / (tmp + b)
+
         #update1 = update0 * sigconv / (tmp + 1)
 
         #bad = index_array[np.invert(good)]
@@ -90,6 +107,7 @@ def RL_gauss_deconvolve(sig, kern, iterlist,
             count += 1
 
     return res, err
+
 
 def find_amp_ta_savgol(D, T, window_length=3):
     """
@@ -167,6 +185,7 @@ def find_amp_ta_savgol(D, T, window_length=3):
         amp[-1] = np.sum(D[interpeak[i]:interpeak[i+1]])
     else:
         amp[-1] = np.sum(D[interpeak[i]:])
+    # print('max amp is', max(amp))
     # Often, zero-mass peaks are found. Remove these.
     ta = T[peak][amp>0]
     amp = amp[amp>0]
