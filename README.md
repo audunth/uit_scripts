@@ -12,9 +12,4 @@ pip install -e .
 ```
 
 ## Migration to uit-cosmo
-Any new updates should be made to uit-cosmo/uit-scripts:
-https://github.com/uit-cosmo/uit_scripts
-
-Contact Audun for access.
-
-At some point in the future, uit-cosmo will supersede this repository.
+This repository is unmaintained. I strongly reccomend the repositories from the uit-cosmo group, see the [`user-guide`](https://github.com/uit-cosmo/user-guide)<a name="user-guide"></a> for an overview.
